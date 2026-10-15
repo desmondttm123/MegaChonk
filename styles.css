@@ -1,0 +1,263 @@
+:root {
+  color-scheme: dark;
+  --ink: #f1ead9;
+  --muted: rgba(225, 220, 204, 0.62);
+  --amber: #e6ad62;
+  --amber-deep: #bd7040;
+  --glass: rgba(24, 17, 13, 0.7);
+  --line: rgba(231, 213, 177, 0.16);
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #211812;
+  color: var(--ink);
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+}
+
+button,
+kbd { font: inherit; }
+
+#game { display: block; width: 100%; height: 100%; outline: none; }
+
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 42%, rgba(191,139,83,.2), transparent 33%), linear-gradient(150deg, #34261d, #130e0b 72%);
+  transition: opacity 900ms ease, visibility 900ms ease;
+}
+
+.boot-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .22;
+  background-image: repeating-linear-gradient(115deg, transparent 0 45px, rgba(255,255,255,.018) 46px 47px);
+}
+
+.boot-screen.is-gone { opacity: 0; visibility: hidden; }
+
+.boot-mark {
+  position: relative;
+  width: 62px;
+  height: 48px;
+  margin-bottom: 26px;
+  border: 1px solid rgba(230,173,98,.45);
+  border-radius: 50% 50% 44% 44%;
+}
+
+.boot-mark span {
+  position: absolute;
+  top: -16px;
+  width: 23px;
+  height: 28px;
+  border: 1px solid rgba(230,173,98,.45);
+  background: #241912;
+  transform: rotate(45deg);
+}
+
+.boot-mark span:first-child { left: 3px; }
+.boot-mark span:last-child { right: 3px; }
+
+.eyebrow,
+.objective-label,
+.load-status,
+.status-footer { text-transform: uppercase; letter-spacing: .2em; }
+
+.eyebrow {
+  position: relative;
+  margin: 0 0 10px;
+  color: var(--amber);
+  font: 600 11px/1.2 "Segoe UI", sans-serif;
+}
+
+.boot-screen h1 {
+  position: relative;
+  margin: 0;
+  font-size: clamp(52px, 8vw, 96px);
+  font-weight: 400;
+  letter-spacing: .12em;
+  line-height: .78;
+  text-align: center;
+  text-shadow: 0 16px 40px rgba(0,0,0,.42);
+}
+
+.boot-screen h1 em { color: var(--amber); font-weight: 400; letter-spacing: .05em; }
+
+.boot-copy { position: relative; margin: 24px 0 20px; color: var(--muted); font-style: italic; }
+
+.coat-picker {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  margin-bottom: 25px;
+}
+
+.coat-picker-label {
+  color: var(--muted);
+  font: 600 9px/1 "Segoe UI", sans-serif;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.coat-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+
+.coat-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 86px;
+  padding: 7px 10px 7px 8px;
+  border: 1px solid rgba(231,213,177,.14);
+  border-radius: 999px;
+  background: rgba(4,10,12,.28);
+  color: var(--muted);
+  cursor: pointer;
+  font: 600 9px/1 "Segoe UI", sans-serif;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.coat-option:hover { color: var(--ink); border-color: rgba(230,173,98,.48); transform: translateY(-1px); }
+.coat-option.is-active { color: var(--ink); border-color: var(--amber); background: rgba(230,173,98,.12); }
+.coat-option:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.coat-swatch {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.26);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+}
+
+.coat-swatch-van { background: linear-gradient(135deg, #eee9df 0 58%, #6d2d12 59%); }
+.coat-swatch-tuxedo { background: linear-gradient(135deg, #17191a 0 54%, #f0ede5 55%); }
+.coat-swatch-calico { background: conic-gradient(#f0ede4 0 28%, #bb5b20 29% 57%, #202020 58% 76%, #f0ede4 77%); }
+.coat-swatch-tabby { background: repeating-linear-gradient(160deg, #cf6a21 0 5px, #6f2e11 6px 8px, #e68b3a 9px 13px); }
+
+#enter-game,
+#restart-game {
+  position: relative;
+  min-width: 218px;
+  padding: 14px 24px;
+  border: 1px solid rgba(230,173,98,.45);
+  border-radius: 2px;
+  background: rgba(230,173,98,.08);
+  color: var(--ink);
+  cursor: pointer;
+  letter-spacing: .08em;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+#enter-game:hover:not(:disabled),
+#restart-game:hover { transform: translateY(-2px); border-color: var(--amber); background: rgba(230,173,98,.16); }
+#enter-game:disabled { opacity: .4; cursor: wait; }
+
+.load-status {
+  position: relative;
+  min-height: 1em;
+  margin-top: 18px;
+  color: var(--muted);
+  font: 500 9px/1.3 "Segoe UI", sans-serif;
+}
+
+.hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; transition: opacity 500ms ease; }
+.hud.is-hidden { opacity: 0; }
+
+.status-panel,
+.objective-panel,
+.controls-card,
+.ability-panel {
+  position: absolute;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, var(--glass), rgba(10,18,21,.42));
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.22);
+}
+
+.status-panel { top: 24px; left: 24px; width: min(326px, calc(100vw - 48px)); padding: 15px 18px 14px; }
+.status-heading,
+.status-footer { display: flex; justify-content: space-between; align-items: center; }
+.status-heading { margin-bottom: 11px; font-size: 15px; }
+.status-heading strong { color: var(--amber); font-family: "Segoe UI", sans-serif; }
+.meter-label { display: flex; justify-content: space-between; margin: 7px 0 5px; color: var(--muted); font: 600 8px/1 "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+.meter-label strong { color: var(--ink); font: 700 9px/1 "Segoe UI", sans-serif; }
+.satiety-track,
+.chonk-track { height: 5px; margin: 0 0 7px; overflow: hidden; background: rgba(255,255,255,.11); }
+#satiety-fill { width: 70%; height: 100%; background: linear-gradient(90deg, var(--amber-deep), var(--amber), #f1d7a7); box-shadow: 0 0 14px rgba(230,173,98,.4); transition: width 180ms linear; }
+.chonk-track #chonk-fill { width: 48%; height: 100%; background: linear-gradient(90deg, #799589, #aec0ac, #e7c184); box-shadow: 0 0 14px rgba(173,198,178,.28); transition: width 220ms linear; }
+.status-footer { margin-top: 11px; color: var(--muted); font: 600 8px/1.2 "Segoe UI", sans-serif; }
+
+.objective-panel { top: 24px; right: 24px; display: flex; gap: 14px; min-width: 270px; padding: 14px 18px; }
+.objective-index { color: var(--amber); font-size: 25px; line-height: 1; }
+.objective-label { display: block; margin-bottom: 4px; color: var(--muted); font: 600 8px/1 "Segoe UI", sans-serif; }
+.objective-panel strong { font-size: 14px; font-weight: 400; }
+.objective-panel small { display: block; margin-top: 7px; color: var(--muted); font: 600 8px/1 "Segoe UI", sans-serif; letter-spacing: .12em; }
+
+.ability-panel { right: 24px; bottom: 24px; display: grid; justify-items: end; gap: 6px; padding: 11px 14px; color: var(--muted); font: 600 9px/1.2 "Segoe UI", sans-serif; text-transform: uppercase; letter-spacing: .08em; }
+.ability-panel > span:first-child { color: #b9d6b8; letter-spacing: .18em; }
+.ability-panel strong { color: var(--ink); font-weight: 500; }
+.ability-panel kbd { color: var(--amber); }
+
+.controls-card { left: 24px; bottom: 24px; display: flex; gap: 15px; padding: 10px 13px; color: var(--muted); font: 500 10px/1 "Segoe UI", sans-serif; }
+kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
+.controls-card b { color: var(--amber); font: inherit; }
+
+.reticle { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: rgba(245,237,216,.62); transform: translate(-50%,-50%); box-shadow: 0 0 10px rgba(255,255,255,.55); }
+.prompt,
+.toast { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; transition: opacity 220ms ease, transform 220ms ease; }
+.prompt { bottom: 19%; color: var(--ink); font-size: 14px; text-shadow: 0 2px 10px #000; }
+.toast { bottom: 10%; max-width: min(520px, calc(100vw - 40px)); padding: 10px 18px; border-top: 1px solid rgba(230,173,98,.45); color: var(--ink); font-size: 15px; font-style: italic; opacity: 0; }
+.toast.is-visible { opacity: 1; transform: translateX(-50%) translateY(-5px); }
+
+.level-transition,
+.completion-screen {
+  position: fixed;
+  z-index: 18;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  transition: opacity 500ms ease, visibility 500ms ease;
+}
+
+.level-transition { inset: 0; pointer-events: none; background: radial-gradient(circle, rgba(57,39,25,.54), rgba(12,8,6,.74)); }
+.level-transition.is-hidden,
+.completion-screen.is-hidden { opacity: 0; visibility: hidden; }
+.level-transition span { color: var(--amber); font: 700 10px/1 "Segoe UI", sans-serif; letter-spacing: .28em; text-transform: uppercase; }
+.level-transition h2 { margin: 13px 0 8px; font-size: clamp(42px, 7vw, 84px); font-weight: 400; letter-spacing: .08em; }
+.level-transition p { margin: 0; color: var(--muted); font-style: italic; }
+
+.completion-screen { inset: 0; padding: 24px; background: radial-gradient(circle at 50% 40%, rgba(154,105,55,.25), transparent 35%), rgba(17,11,8,.94); }
+.completion-screen h2 { margin: 8px 0 12px; color: var(--amber); font-size: clamp(48px, 9vw, 110px); font-weight: 400; letter-spacing: .09em; }
+.completion-screen p { color: var(--muted); }
+#restart-game { margin-top: 20px; }
+
+.cinematic-bars::before,
+.cinematic-bars::after { content: ""; position: fixed; z-index: 4; left: 0; right: 0; height: 7px; background: #05090b; pointer-events: none; }
+.cinematic-bars::before { top: 0; }
+.cinematic-bars::after { bottom: 0; }
+.vignette { position: fixed; z-index: 3; inset: 0; pointer-events: none; background: radial-gradient(circle, transparent 48%, rgba(0,6,8,.3)); mix-blend-mode: multiply; }
+
+@media (max-width: 760px) {
+  .objective-panel { top: auto; right: 14px; bottom: 14px; min-width: 220px; }
+  .status-panel { top: 14px; left: 14px; }
+  .controls-card,
+  .ability-panel { display: none; }
+  .boot-screen h1 { letter-spacing: .06em; }
+  .coat-options { max-width: 290px; }
+}

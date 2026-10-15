@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2b211a" />
+    <title>Mega Chonk</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e6ad62' d='M6 13 4 3l8 6a13 13 0 0 1 8 0l8-6-2 10a12 12 0 1 1-20 0Z'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/build/three.module.js",
+          "three/addons/": "./vendor/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="game" aria-label="Mega Chonk 3D game"></canvas>
+    <div id="boot" class="boot-screen">
+      <div class="boot-mark" aria-hidden="true"><span></span><span></span></div>
+      <p class="eyebrow">Three rooms. Nine lives. One appetite.</p>
+      <h1>MEGA<br /><em>CHONK</em></h1>
+      <p class="boot-copy">Raid the bowls. Dodge the vacuum. Rule the house.</p>
+      <div class="coat-picker" aria-label="Choose the cat's coat">
+        <span class="coat-picker-label">Choose a coat</span>
+        <div class="coat-options" role="group" aria-label="Cat coat">
+          <button class="coat-option is-active" type="button" data-coat="van" aria-pressed="true">
+            <span class="coat-swatch coat-swatch-van" aria-hidden="true"></span>Van
+          </button>
+          <button class="coat-option" type="button" data-coat="tuxedo" aria-pressed="false">
+            <span class="coat-swatch coat-swatch-tuxedo" aria-hidden="true"></span>Tuxedo
+          </button>
+          <button class="coat-option" type="button" data-coat="calico" aria-pressed="false">
+            <span class="coat-swatch coat-swatch-calico" aria-hidden="true"></span>Calico
+          </button>
+          <button class="coat-option" type="button" data-coat="orangeTabby" aria-pressed="false">
+            <span class="coat-swatch coat-swatch-tabby" aria-hidden="true"></span>Tabby
+          </button>
+        </div>
+      </div>
+      <button id="enter-game" type="button" disabled>Enter the house</button>
+      <p id="load-status" class="load-status">Preparing the house...</p>
+    </div>
+    <div id="hud" class="hud is-hidden">
+      <section class="status-panel" aria-label="Cat status">
+        <div class="status-heading"><span>Condition</span><strong id="condition-value">READY</strong></div>
+        <div class="meter-label"><span>Satiety</span><strong id="satiety-value">62</strong></div>
+        <div class="satiety-track"><div id="satiety-fill"></div></div>
+        <div class="meter-label"><span>Chonk</span><strong id="chonk-value">48</strong></div>
+        <div class="chonk-track"><div id="chonk-fill"></div></div>
+        <div class="status-footer"><span id="state-value">CURIOUS</span><span id="pace-value">BALANCED PACE</span></div>
+      </section>
+      <section class="objective-panel">
+        <span id="level-index" class="objective-index">01</span>
+        <div><span id="level-name" class="objective-label">Living Room Zoomies</span><strong id="objective-text">Find the first supper</strong><small id="level-progress">LEVEL 1 OF 3 · XP 0</small></div>
+      </section>
+      <section class="ability-panel" aria-label="Abilities">
+        <span id="jump-readiness">LEAP READY</span>
+        <strong><kbd>SPACE</kbd> Jump</strong>
+        <span><kbd>Q</kbd> Sit · <kbd>LMB</kbd> Claw · <kbd>RMB</kbd> Bite</span>
+      </section>
+      <div class="reticle" aria-hidden="true"></div>
+      <div id="prompt" class="prompt"></div>
+      <aside class="controls-card">
+        <span><kbd>WASD</kbd> Move</span><span><kbd>SHIFT</kbd> Trot</span>
+        <span><kbd>SPACE</kbd> Jump</span><span><kbd>MOUSE</kbd> Look</span><span><kbd>C</kbd> Coat: <b id="coat-name">VAN</b></span><span><kbd>ESC</kbd> Release</span>
+      </aside>
+      <div id="toast" class="toast"></div>
+    </div>
+    <section id="level-transition" class="level-transition is-hidden" aria-live="polite">
+      <span id="transition-kicker">Level 01</span>
+      <h2 id="transition-title">Living Room Zoomies</h2>
+      <p id="transition-copy">Gather the scents and reach the pet door.</p>
+    </section>
+    <section id="completion-screen" class="completion-screen is-hidden" aria-live="polite">
+      <p class="eyebrow">All three rooms cleared</p>
+      <h2>MEGA CHONK</h2>
+      <p id="completion-stats">The house has a new ruler.</p>
+      <button id="restart-game" type="button">Run again</button>
+    </section>
+    <div class="cinematic-bars" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>
