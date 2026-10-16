@@ -11,6 +11,9 @@ import { TouchControls } from "./touch-controls.js";
 import { JUMP_PHYSICS, getJumpProfile, speedMultiplier, assessJump } from "./jump-rules.js";
 import { RunProgress } from "./adventure-rules.js";
 import { AdventureWorld } from "./adventure-world.js";
+import { CONDITION, NUTRITION, nourish, metabolize, bodyRadius, SnackWallet } from "./condition-rules.js";
+import { installChonkMorph } from "./cat-condition-visual.js";
+import { BodyTrials } from "./body-trials.js";
 
 const CAT_SCALE = 0.84;
 const CAT_BODY_HEIGHT = 0.76;
@@ -56,6 +59,8 @@ const ui = {
   bossPhase: document.querySelector("#boss-phase"),
   bossRetry: document.querySelector("#boss-retry"),
   retryBoss: document.querySelector("#retry-boss"),
+  roomRetry: document.querySelector("#room-retry"),
+  retryRoom: document.querySelector("#retry-room"),
 };
 
 const scene = new THREE.Scene();
@@ -140,6 +145,11 @@ const state = {
   bossRetry: false,
   attackCooldown: 0,
   pendingAttack: null,
+  snacks: 0,
+  roomLives: CONDITION.lives,
+  starvingTime: 0,
+  hungerWarning: 0,
+  recoveryTime: 8,
 };
 
 const character = {
@@ -198,14 +208,23 @@ const LEVELS = [
     theme: "attic",
   },
 ];
-const FOOD_LABELS = ["KIBBLE", "FISH", "SARDINES", "TREAT", "SUPPER", "CHICKEN", "TUNA"];
+const FOOD_LABELS = ["KIBBLE", "FISH", "SARDINES", "DINNER", "SUPPER", "CHICKEN", "TUNA"];
 let activeGoal = null;
 let transitionTimer = null;
 let eatingTarget = null;
 const progress = new RunProgress();
+let pointStorage;
+try { pointStorage = localStorage; } catch { /* Session-only fallback. */ }
+const wallet = new SnackWallet(pointStorage);
+const bodyTrials = new BodyTrials({ box: addBox, sign: addWorldSign, food: createFood, materials: null, toast: showToast });
 const adventure = new AdventureWorld({
   root: levelRoot, progress, onToast: showToast, onDeath: combatDeath,
-  onFood: () => { state.satiety = Math.min(100, state.satiety + 6); showToast("Fish snack: +6 satiety, no extra chonk.", 2.5); },
+  onFood: () => {
+    Object.assign(state, nourish(state, "snack"));
+    state.snacks += 1;
+    wallet.award(NUTRITION.snack.points);
+    showToast("Fish snack / +10 energy, +9 chonk, +25 snack points.", 3);
+  },
   onVictory: () => {
     state.xp += 250;
     state.transitioning = true;
@@ -566,6 +585,7 @@ function createLevelRandom(levelIndex) {
 
 function clearLevel() {
   adventure.clear();
+  bodyTrials.clear();
   for (const child of [...levelRoot.children]) {
     levelRoot.remove(child);
     child.traverse((object) => {
@@ -734,21 +754,22 @@ function buildVerticalRoute(definition) {
   const rug = addBox("UpstairsRunner", new THREE.Vector3(-1.5, height + 0.006, -10.3), new THREE.Vector3(7.6, 0.012, 2.5), materials.upholsteryWarm, { castShadow: false, radius: 0.005 });
   rug.receiveShadow = true;
   addBox("LoftBench", new THREE.Vector3(0, height + 0.22, -12.0), new THREE.Vector3(3.4, 0.44, 0.6), materials.upholsteryGold, { collider: true, surface: true, radius: 0.13 });
-  addBox("HighWindowPerch", new THREE.Vector3(4.5, height - 0.10, -2.9), new THREE.Vector3(2.4, 0.2, 2.2), materials.woodLight, { collider: true, surface: true, occluder: true, radius: 0.065 });
-  addBox("PerchCushion", new THREE.Vector3(4.5, height + 0.015, -2.9), new THREE.Vector3(2.15, 0.03, 1.95), materials.upholstery, { castShadow: false, radius: 0.015 });
-  for (const [x, z, top] of [[8.7, 0.1, 1.95], [8.7, 2.7, 1.20], [8.3, 4.8, 0.55]]) {
+  addBox("HighWindowPerch", new THREE.Vector3(4.5, height - 0.10, -1.5), new THREE.Vector3(2.4, 0.2, 2.2), materials.woodLight, { collider: true, surface: true, occluder: true, radius: 0.065 });
+  addBox("PerchCushion", new THREE.Vector3(4.5, height + 0.015, -1.5), new THREE.Vector3(2.15, 0.03, 1.95), materials.upholstery, { castShadow: false, radius: 0.015 });
+  for (const [x, z, top] of [[8.7, 1.5, 1.95], [8.7, 4.1, 1.20], [8.3, 6.2, 0.55]]) {
     addBox("DescendingCatShelf", new THREE.Vector3(x, top - 0.09, z), new THREE.Vector3(1.9, 0.18, 1.7), materials.woodLight, { collider: true, surface: true, radius: 0.055 });
     addBox("ShelfSupport", new THREE.Vector3(x, (top - 0.18) / 2, z), new THREE.Vector3(0.16, top - 0.18, 0.16), materials.wood, { collider: true, radius: 0.02 });
   }
   addWorldSign("UPSTAIRS / OAK STAIRS", stairX, 1.15, 0.60);
   addWorldSign("CATNIP / TROT + LEAP", 4.5, height + 1.15, -8.9, "#bde8ad");
-  addWorldSign("BONUS PERCH", 4.5, height + 0.90, -2.9);
+  addWorldSign("BONUS PERCH", 4.5, height + 0.90, -1.5);
   createFood(4.5, -9.0, "CATNIP", height, { required: false, boost: true });
-  createFood(4.5, -2.9, "TREAT", height, { required: false, xp: 50 });
+  createFood(4.5, -1.5, "TREAT", height, { required: false, xp: 0, nutrition: "bonus" });
   verticalRoutes.push({
     name: `${definition.theme} upstairs`, height,
     stairs: { x: stairX, entry: [stairX, 0, 0.5], top: [stairX, height, -8.5] },
-    launch: [4.5, height, -8.25], landing: [4.5, height, -3.5], gap: 3.8,
+    launch: [4.5, height, -8.25], landing: [4.5, height, -2.1], gap: 5.2,
+    shelves: [[8.7, 1.95, 1.5], [8.7, 1.20, 4.1], [8.3, 0.55, 6.2]],
     deck: { minX: -9, maxX: 9, minZ: -12.6, maxZ: -7.8 },
   });
 }
@@ -879,14 +900,16 @@ function buildGeneratedCourse(definition, random, difficulty) {
     activeGoal.position.toArray(),
     [0, 0, 0.2],
     ...adventure.items.map((item) => [item.x, 0, item.z]),
+    [-11, 0, 10.5], [11, 0, 10.5], [4.3, 0, 15.7], [-1.5, 0, 15],
   ];
   generatedCourse = generateCourse({
     random, difficulty, bounds: WORLD_BOUNDS, boxes: [...colliders, ...adventure.reservations],
     spawn: definition.spawn, targets, bodyHeight: CAT_BODY_HEIGHT,
     protectedAreas: [
       footprint(-7.5, -3.8, 3.8, 11.0),
-      footprint(4.5, -5.3, 4.0, 8.5),
-      footprint(8.7, 2.4, 4.0, 8.0),
+      footprint(4.5, -4.6, 4.0, 10.0),
+      footprint(8.7, 3.8, 4.0, 8.0),
+      ...bodyTrials.protectedAreas,
     ],
   });
   for (const obstacle of generatedCourse.obstacles) {
@@ -928,6 +951,8 @@ function buildLevel(levelIndex, announce = true) {
   buildLevelShell(definition, random);
   buildVerticalRoute(definition);
   createGoal(definition.goal[0], definition.goal[1]);
+  bodyTrials.materials = materials;
+  bodyTrials.build();
   adventure.buildRoom(levelIndex, colliders);
   buildGeneratedCourse(definition, random, levelIndex);
 
@@ -968,13 +993,13 @@ function createFood(x, z, label, y = 0, options = {}) {
     active: true,
     required: options.required ?? true,
     boost: options.boost ?? false,
-    xp: options.xp ?? 25,
+    xp: options.xp ?? (options.required === false ? 0 : 25),
     cooldown: 0,
     consumed: 0,
     baseY: y,
     phase: seededRandom(x + z + state.level * 31) * Math.PI * 2,
-    satietyValue: options.boost ? 3 : label === "TREAT" ? 9 : 13,
-    chonkValue: options.boost ? 0 : label === "TREAT" ? 2.2 : 3.5,
+    nutrition: options.nutrition ?? (options.boost ? "catnip" : options.required === false ? "snack" : "meal"),
+    regrow: options.regrow ?? (options.boost ? CATNIP_DURATION + 4 : 0),
   });
 }
 
@@ -1008,7 +1033,7 @@ function addAtmosphere() {
 }
 
 function setAction(name, fadeDuration = 0.24) {
-  const next = character.actions[name];
+  const next = name === "Eat" ? character.eatAction : character.actions[name];
   if (!next || next === character.currentAction) return;
   const previous = character.currentAction;
   next.enabled = true;
@@ -1143,6 +1168,13 @@ async function loadCat() {
     character.actions[name] = action;
   }
   character.clipCount = Object.keys(character.actions).length;
+  const eatingClip = character.actions.Bite.getClip().clone();
+  eatingClip.name = "EatLoop";
+  character.eatAction = character.mixer.clipAction(eatingClip);
+  character.eatAction.setLoop(THREE.LoopRepeat, Infinity);
+  character.eatAction.clampWhenFinished = false;
+  character.eatAction.timeScale = 1.6;
+  character.chonkMorph = installChonkMorph(character.model);
   character.visualMode = "skinned-mesh";
 
   character.shadow = new THREE.Mesh(
@@ -1171,6 +1203,8 @@ function jumpProfile() {
 
 function requestJump() {
   if (state.gameComplete || state.transitioning) return;
+  eatingTarget = null;
+  state.eatingTime = 0;
   state.jumpBuffer = 0.16;
   if (state.sitting) state.sitting = false;
 }
@@ -1206,6 +1240,7 @@ function canOccupy(x, z, y = character.root.position.y) {
   if (x < WORLD_BOUNDS.minX || x > WORLD_BOUNDS.maxX || z < WORLD_BOUNDS.minZ || z > WORLD_BOUNDS.maxZ) return false;
   if (adventure.blocks(x, z, y)) return false;
   return !colliders.some((box) => {
+    if (box.enabled === false) return false;
     if (!circleHitsBox(x, z, character.radius, box)) return false;
     const clearsTop = y >= box.maxY - 0.055;
     const clearsBottom = y + CAT_BODY_HEIGHT <= box.minY + 0.03;
@@ -1269,7 +1304,7 @@ function updateVertical(delta) {
   if (character.verticalVelocity > 0) {
     // Sweep the body against undersides so jumping cannot phase through a loft.
     const ceiling = colliders.filter((box) => (
-      circleHitsBox(position.x, position.z, character.radius, box)
+      box.enabled !== false && circleHitsBox(position.x, position.z, character.radius, box)
       && previousY + CAT_BODY_HEIGHT <= box.minY + 0.01
       && nextY + CAT_BODY_HEIGHT >= box.minY
     )).sort((a, b) => a.minY - b.minY)[0];
@@ -1321,7 +1356,7 @@ function moveCharacter(delta) {
   }
 
   const trotting = keys.has("ShiftLeft") || keys.has("ShiftRight") || touchControls?.trotting;
-  const maxSpeed = (trotting ? JUMP_PHYSICS.trot : JUMP_PHYSICS.walk) * speedMultiplier(state.satiety, state.chonk) * (state.catnipTime > 0 ? CATNIP_SPEED : 1) * progress.stats.speed;
+  const maxSpeed = (trotting ? JUMP_PHYSICS.trot : JUMP_PHYSICS.walk) * speedMultiplier(state.satiety, state.chonk) * (state.catnipTime > 0 ? CATNIP_SPEED : 1) * progress.stats.speed * (state.grounded ? 1 : JUMP_PHYSICS.airPace);
   temp.targetVelocity.copy(temp.desired).multiplyScalar(maxSpeed);
   const response = hasInput ? 7.2 : 10.5;
   character.velocity.lerp(temp.targetVelocity, 1 - Math.exp(-response * delta));
@@ -1343,8 +1378,6 @@ function moveCharacter(delta) {
     character.heading = dampAngle(character.heading, targetHeading, trotting ? 12 : 9, delta);
     character.root.rotation.y = character.heading;
     state.idleTime = 0;
-    state.satiety = Math.max(0, state.satiety - delta * (trotting ? 0.13 : 0.075) * progress.stats.hungerDrain);
-    state.chonk = Math.max(26, state.chonk - delta * actualSpeed * 0.0016);
   } else {
     state.idleTime += delta;
   }
@@ -1358,6 +1391,8 @@ function moveCharacter(delta) {
   } else if (actualSpeed > 0.06) {
     setAction("Walk", 0.2);
     if (character.currentAction) character.currentAction.timeScale = THREE.MathUtils.clamp(actualSpeed / 1.55, 0.55, 3.3);
+  } else if (eatingTarget) {
+    setAction("Eat", 0.12);
   } else if (state.idleTime > 5 && character.actions.Groom) {
     setAction("Groom", 0.55);
     if (character.currentAction) character.currentAction.timeScale = 1;
@@ -1370,12 +1405,12 @@ function moveCharacter(delta) {
 }
 
 function updateFood(delta, speed) {
-  if (state.attackCooldown > 0 || state.stage === "boss" || state.transitioning) return;
+  if (state.attackCooldown > 0 || state.stage === "boss" || state.transitioning || state.gameComplete || document.hidden || !document.hasFocus()) return;
   let nearest = null;
   let nearestDistance = Infinity;
   for (const food of foods) {
     if (!food.active) {
-      if (food.boost && food.cooldown > 0) {
+      if (food.regrow && food.cooldown > 0) {
         food.cooldown = Math.max(0, food.cooldown - delta);
         if (food.cooldown === 0) {
           food.active = true;
@@ -1394,10 +1429,11 @@ function updateFood(delta, speed) {
     }
   }
 
-  ui.prompt.textContent = nearest && nearestDistance < 2.1 ? `${nearest.label}  ·  MOVE CLOSER` : "";
+  const foodRole = nearest ? nearest.required ? "SUPPER OBJECTIVE" : nearest.boost ? "SPEED BOOST" : nearest.nutrition === "lean" ? "ENERGY / NO FAT" : `OPTIONAL / +${NUTRITION[nearest.nutrition].points} POINTS` : "";
+  ui.prompt.textContent = nearest && nearestDistance < 2.1 ? `${nearest.label} / ${foodRole} / MOVE CLOSER` : "";
   const wrongHeight = nearest && Math.abs(nearest.baseY - character.root.position.y) > 0.34;
   const movementRequested = MOVEMENT_KEYS.some((key) => keys.has(key)) || Math.hypot(touchControls?.x ?? 0, touchControls?.z ?? 0) > 0;
-  if (!nearest || nearestDistance > 0.88 || wrongHeight || speed > 0.7 || !state.grounded || movementRequested) {
+  if (!nearest || nearestDistance > 0.88 || wrongHeight || speed > 0.7 || !state.grounded || movementRequested || state.sitting || state.forcedAction) {
     if (eatingTarget?.active) eatingTarget.group.scale.setScalar(FOOD_SCALE);
     state.eatingTime = 0;
     eatingTarget = null;
@@ -1409,27 +1445,33 @@ function updateFood(delta, speed) {
     state.eatingTime = 0;
     eatingTarget = nearest;
   }
-  ui.prompt.textContent = `EATING ${nearest.label}`;
-  if (state.eatingTime === 0) triggerAction("Bite", 0.72, false);
-  state.eatingTime += delta;
+  ui.prompt.textContent = `EATING ${nearest.label} / ${foodRole}`;
+  setAction("Eat", 0.12);
+  state.idleTime = 0;
   const consumed = Math.min(delta, 1.25 - nearest.consumed);
   nearest.consumed += consumed;
-  state.satiety = Math.min(100, state.satiety + consumed * (nearest.satietyValue / 1.25));
-  nearest.group.scale.lerp(new THREE.Vector3(0.12, 0.12, 0.12), 1 - Math.exp(-4 * delta));
-  if (state.eatingTime >= 1.25) {
+  state.eatingTime = nearest.consumed;
+  Object.assign(state, nourish(state, nearest.nutrition, consumed / 1.25));
+  nearest.group.scale.setScalar(FOOD_SCALE * (1 - 0.72 * nearest.consumed / 1.25));
+  if (nearest.consumed >= 1.25 - 0.00001) {
     nearest.active = false;
     nearest.group.visible = false;
-    state.eaten += 1;
-    if (nearest.required) state.levelFoodEaten += 1;
-    state.chonk = Math.min(100, state.chonk + nearest.chonkValue);
+    if (nearest.required) { state.eaten += 1; state.levelFoodEaten += 1; }
+    else if (NUTRITION[nearest.nutrition].points) state.snacks += 1;
+    const points = NUTRITION[nearest.nutrition].points;
+    wallet.award(points);
     state.xp += nearest.xp;
+    nearest.cooldown = nearest.regrow;
     state.eatingTime = 0;
     eatingTarget = null;
     if (nearest.boost) {
       state.catnipTime = CATNIP_DURATION;
-      nearest.cooldown = CATNIP_DURATION + 4;
       const leapControls = touchControls?.enabled ? "Trot + Jump" : "Shift + Space";
       showToast(`Catnip zoomies! +32% speed / +18% leap. ${leapControls} for the long jump.`, 5);
+    } else if (points) {
+      showToast(`${nearest.label.toLowerCase()} / +${points} snack points, +${NUTRITION[nearest.nutrition].weight} chonk. Not a supper objective.`, 3.5);
+    } else if (nearest.nutrition === "lean") {
+      showToast("Lean supper / energy restored, no extra fat. Refills in 32 seconds.", 3.5);
     } else {
       showToast(`${nearest.label.toLowerCase()} secured · +${nearest.xp} XP`, 2.8);
     }
@@ -1614,6 +1656,12 @@ function restartRun() {
   state.chonk = 48;
   state.xp = 0;
   state.eaten = 0;
+  state.snacks = 0;
+  state.roomLives = CONDITION.lives;
+  state.starvingTime = 0;
+  state.hungerWarning = 0;
+  state.recoveryTime = 8;
+  ui.roomRetry.classList.add("is-hidden");
   state.jumps = 0;
   state.bonks = 0;
   state.gameComplete = false;
@@ -1635,6 +1683,8 @@ function resetCombatInput() {
   state.forcedAction = null;
   state.actionTime = 0;
   state.sitting = false;
+  eatingTarget = null;
+  state.eatingTime = 0;
   character.velocity.set(0, 0, 0);
 }
 
@@ -1682,6 +1732,9 @@ function resetBossPosition() {
   state.invulnerable = 2.5;
   state.idleTime = 0;
   state.satiety = Math.max(45, Math.min(75, state.satiety));
+  state.starvingTime = 0;
+  state.hungerWarning = 0;
+  state.recoveryTime = 8;
   state.chonk = Math.min(72, state.chonk);
   state.catnipTime = 0;
   state.yaw = 0;
@@ -1708,10 +1761,34 @@ function combatDeath(reason) {
     }
     showToast(`${reason}. ${adventure.boss.lives} lives left.${lost ? " Pendant lost." : ""} Boss damage is kept.`, 3.2);
   } else {
+    state.roomLives = Math.max(0, state.roomLives - 1);
     respawnCharacter(reason);
     resetCombatInput();
-    showToast(`${reason}. Back to your checkpoint.${lost ? " Pendant lost; collar kept." : ""}`, 3.2);
+    state.satiety = Math.max(55, state.satiety);
+    state.starvingTime = 0;
+    state.hungerWarning = 0;
+    state.recoveryTime = 12;
+    if (!state.roomLives) {
+      state.transitioning = true;
+      touchControls?.setPlaying(false);
+      ui.roomRetry.classList.remove("is-hidden");
+      document.exitPointerLock?.();
+    }
+    showToast(`${reason}. ${state.roomLives} lives left. Energy restored.${lost ? " Pendant lost; collar kept." : ""}`, 3.2);
   }
+}
+
+function updateCondition(delta, speed) {
+  if (!state.started || state.transitioning || state.gameComplete || document.hidden || !document.hasFocus()) return;
+  state.recoveryTime = Math.max(0, state.recoveryTime - delta);
+  const trotting = keys.has("ShiftLeft") || keys.has("ShiftRight") || touchControls?.trotting;
+  Object.assign(state, metabolize(state, delta, speed, trotting, progress.stats.hungerDrain));
+  const warning = state.satiety <= 8 ? 2 : state.satiety <= 20 ? 1 : 0;
+  if (warning > state.hungerWarning) showToast(warning === 2 ? "Almost starving! Eat now. Lean supper by the entrance adds no fat." : "Energy low. A meal restores pace; rich treats add weight.", 5);
+  state.hungerWarning = warning;
+  state.starvingTime = state.satiety <= 0 && state.recoveryTime === 0 ? state.starvingTime + delta : 0;
+  if (state.starvingTime >= CONDITION.starvationGrace) combatDeath("Starved / one life lost");
+  character.radius = bodyRadius(state.chonk);
 }
 
 function restartBossFight() {
@@ -1742,7 +1819,7 @@ function updateAdventure(delta, elapsed) {
       if (state.pendingAttack.delay <= 0) {
         const kind = state.pendingAttack.kind;
         state.pendingAttack = null;
-        adventure.attack(player, kind);
+        if (!bodyTrials.attack(player, kind, state)) adventure.attack(player, kind);
       }
     }
   }
@@ -1755,6 +1832,7 @@ function updateAdventure(delta, elapsed) {
   } else if (active) {
     const enemy = adventure.enemies.find((enemy) => enemy.active && Math.hypot(enemy.group.position.x - player.x, enemy.group.position.z - player.z) < 2.5);
     if (enemy) ui.prompt.textContent = enemy.state === "warn" ? "MOUSE WINDING UP / CLAW OR DODGE" : "CLOCKWORK MOUSE / CLAW OR BITE FOR LOOT";
+    else if (!eatingTarget) ui.prompt.textContent = bodyTrials.prompt(position, state.chonk) || ui.prompt.textContent;
   }
 }
 
@@ -1807,8 +1885,8 @@ function updateCatVisual(delta) {
   if (character.collar) character.collar.visible = Boolean(progress.collar);
   if (character.pendant) character.pendant.visible = Boolean(progress.charm);
 
-  const chonkWidth = 1 + THREE.MathUtils.smoothstep(state.chonk, 62, 100) * 0.07;
-  character.model.scale.set(CAT_SCALE * chonkWidth, CAT_SCALE, CAT_SCALE * chonkWidth);
+  const chonkWidth = 1 + THREE.MathUtils.smoothstep(state.chonk, 40, 100) * 0.45;
+  character.chonkMorph?.update(state.chonk, delta);
 
   const support = findSupport(
     character.root.position.x,
@@ -1840,7 +1918,7 @@ function updateAtmosphere(delta, elapsed) {
 
 function updateHud(speed) {
   const equipment = progress.snapshot();
-  const equipmentText = `COLLAR ${equipment.collar ? `T${equipment.collar.tier} / +${equipment.collar.tier * 3}% PACE` : "NONE"} | PENDANT ${equipment.charm ? `T${equipment.charm.tier} / 2X CLAW` : "NONE"}`;
+  const equipmentText = `COLLAR ${equipment.collar ? `T${equipment.collar.tier} / +${equipment.collar.tier * 3}% PACE` : "NONE"} | PENDANT ${equipment.charm ? `T${equipment.charm.tier} / 2X CLAW` : "NONE"} | SNACK POINTS ${wallet.points}`;
   if (ui.equipment.textContent !== equipmentText) ui.equipment.textContent = equipmentText;
   const boss = adventure.boss;
   ui.bossPanel.hidden = !boss || state.gameComplete;
@@ -1858,9 +1936,10 @@ function updateHud(speed) {
   ui.chonk.textContent = Math.round(state.chonk);
   ui.chonkFill.style.width = `${state.chonk}%`;
   const profile = jumpProfile();
-  const pace = state.satiety < 20
+  const pace = state.satiety <= 0 ? `EAT NOW / ${Math.max(0, Math.ceil(CONDITION.starvationGrace - state.starvingTime))}s`
+    : state.satiety < 20
     ? "HUNGRY · LOW POWER"
-    : state.chonk > 82
+    : state.chonk > 64
       ? "HEAVY · SHORT STRIDE"
       : state.satiety > 88
         ? "FULL · STEADY"
@@ -1873,6 +1952,7 @@ function updateHud(speed) {
   ui.boost.textContent = `CATNIP ZOOMIES ${Math.ceil(state.catnipTime)}s / +32% SPEED / +18% LEAP`;
   ui.state.textContent = !state.grounded
     ? "AIRBORNE"
+    : eatingTarget ? "EATING"
     : state.forcedAction === "Claw"
       ? "CLAWING"
       : state.forcedAction === "Bite"
@@ -1886,6 +1966,7 @@ function updateHud(speed) {
               : state.idleTime > 5
                 ? "GROOMING"
                 : "CURIOUS";
+  if (state.stage === "rooms") ui.state.textContent += ` / ${state.roomLives} LIVES`;
   const remaining = foods.filter((food) => food.active && food.required);
   const left = remaining.length;
   const upstairs = remaining.some((food) => food.baseY > 2);
@@ -1920,9 +2001,11 @@ function animate() {
   let speed = 0;
   updateMovingPlatforms(elapsed);
   if (state.started) {
+    bodyTrials.update(delta, character.root.position, state.grounded, state.chonk);
     if (!state.transitioning && !state.gameComplete) state.catnipTime = Math.max(0, state.catnipTime - delta);
     speed = moveCharacter(delta);
     updateFood(delta, speed);
+    updateCondition(delta, speed);
     updateHazards(delta, elapsed);
     updateCheckpoints(elapsed);
     updateGoal(delta, elapsed);
@@ -2030,6 +2113,17 @@ async function init() {
   }, { once: true });
   ui.restart.addEventListener("click", restartRun);
   ui.retryBoss.addEventListener("click", restartBossFight);
+  ui.retryRoom.addEventListener("click", () => {
+    state.roomLives = CONDITION.lives;
+    state.transitioning = false;
+    state.satiety = 55;
+    state.starvingTime = 0;
+    state.recoveryTime = 12;
+    ui.roomRetry.classList.add("is-hidden");
+    resetCombatInput();
+    requestCameraControl();
+    showToast("Nine fresh lives. Meals, collar and snack points kept.", 3.5);
+  });
   renderer.setAnimationLoop(animate);
 }
 
@@ -2082,6 +2176,7 @@ window.__megaChonk = {
   setCondition: (satiety, chonk) => {
     state.satiety = THREE.MathUtils.clamp(satiety, 0, 100);
     state.chonk = THREE.MathUtils.clamp(chonk, 0, 100);
+    character.radius = bodyRadius(state.chonk);
   },
   regenerate: (seed = Math.floor(Math.random() * 900000) + 100000) => {
     state.runSeed = seed;
@@ -2108,6 +2203,7 @@ window.__megaChonk = {
     gameComplete: state.gameComplete,
     stage: state.stage,
     adventure: adventure.snapshot(),
+    bodyTrials: bodyTrials.snapshot(),
     grounded: state.grounded,
     bonks: state.bonks,
     jumps: state.jumps,
@@ -2124,13 +2220,13 @@ window.__megaChonk = {
         position: [food.group.position.x, food.baseY, food.group.position.z],
       }))
       .filter((food) => food.active && foods[food.index].required),
-    snacks: foods.filter((food) => !food.required).map((food) => ({ label: food.label, active: food.active, boost: food.boost, position: [food.group.position.x, food.baseY, food.group.position.z] })),
+    snacks: foods.filter((food) => !food.required).map((food) => ({ label: food.label, active: food.active, boost: food.boost, nutrition: food.nutrition, consumed: food.consumed, cooldown: food.cooldown, position: [food.group.position.x, food.baseY, food.group.position.z] })),
     verticalRoutes,
     surfaces: surfaces.map(({ minX, maxX, minZ, maxZ, topY }) => ({ minX, maxX, minZ, maxZ, topY })),
     goal: activeGoal
       ? { active: activeGoal.active, position: activeGoal.position.toArray() }
       : null,
-    colliders: colliders.map((box) => ({
+    colliders: colliders.filter((box) => box.enabled !== false).map((box) => ({
       minX: box.minX,
       maxX: box.maxX,
       minZ: box.minZ,
@@ -2159,6 +2255,14 @@ window.__megaChonk = {
     satiety: state.satiety,
     chonk: state.chonk,
     eaten: state.eaten,
+    snacks: state.snacks,
+    snackPoints: wallet.points,
+    roomLives: state.roomLives,
+    starvingTime: state.starvingTime,
+    bodyMorph: character.chonkMorph?.snapshot(),
+    bodyTrials: bodyTrials.snapshot(),
+    eatingTime: state.eatingTime,
+    animationTime: character.currentAction?.time,
     coat: state.coat,
     stage: state.stage,
     adventure: adventure.snapshot(),

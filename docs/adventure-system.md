@@ -26,8 +26,12 @@ or rotating-hazard checkpoint bumps are deliberately not combat deaths.
 Each room spawns 1/2/3 clockwork mice in optional patrol areas. A mouse warns for
 0.9 seconds, lunges toward the previously marked position, then rests. Claws and
 bites must face a nearby target; the third room's mice take two base hits.
-Every defeated mouse drops either a fish snack (+6 satiety, no chonk) or a
+Every defeated mouse drops either a rich fish snack (+10 satiety, +9 chonk,
++25 snack points, not objective progress) or a
 room-tier pendant. Kills/pickup IDs prevent duplicate rewards on regeneration.
+Starvation also drops the pendant and spends a room life, with safe energy
+recovery at the checkpoint. See [condition system](condition-system.md) for the
+separate snack wallet, body puzzles and nine-life room continue.
 
 ## Vacuum Encounter
 

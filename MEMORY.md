@@ -1,13 +1,17 @@
 # Mega Chonk Project Memory
 
 Last updated: 2026-10-17 (Asia/Singapore).
-Baseline inspected for the latest adventure update: `3c9260e` on `main`.
+Baseline inspected for the latest condition update: `99fe67c` on `main`.
 Read current Git history before relying on that baseline; this file is not a live
 deployment status feed.
 
 ## Resume Here
 
-- Latest released request: fair generated jump obstacles, a reusable vacuum boss after room three, persistent accessories, and enemies with guaranteed drops. The adventure implementation is described in [adventure system](docs/adventure-system.md).
+- Latest implemented request: longer average leaps, continuous interruptible eating, meaningful energy/weight, optional point-bearing fattening snacks, starvation life loss, narrow passages, heavy pressure plates and a safe trim/refeed loop. User explicitly requested auto-push. Balance and test boundaries: [condition system](docs/condition-system.md). Release evidence is pending the push/live check below, not implied by local test success.
+- Required suppers are separate from optional food: +8 energy/+0.8 chonk, capped at 80 energy. Rich snacks/food drops give +10 energy/+9 chonk/+25 browser-saved points; bonus stashes give +60 points/+3 chonk. No spending UI yet. Starting condition remains 62/48. Warnings and six seconds at zero spend a life, drop the pendant and safely restore energy; room nine-life continue retains meal progress. The boss keeps its own nine-life fight.
+- Every room now has optional 60-max slim entry, 64-min latched pressure plate, scratch post (-4 chonk/-1.5 energy per claw) and no-fat recovery food. Refills and occupant-safe exits prevent body-puzzle softlocks. Runtime torso morph and variable capsule radius make weight visible/physical; canonical model and open Blender scene are untouched.
+- Condition pure/browser tests, smoke, 90 layouts, adventure, vertical, camera, phone layout/input, visual-cat and local Pages passed. Full keyboard campaign seeds 424242/765432 each completed 12 suppers + boss, 850 XP, no deaths/bonks, 6/5 jumps. Actual isolated sprint jumps measured about 5.28 normal vs 2.41 heavy. Physical phones/Safari and human balance feedback remain outstanding. One first mobile run stalled; a fresh bounded run passed, so do not count the stalled run as a pass.
+- Previous released request: fair generated jump obstacles, a reusable vacuum boss after room three, persistent accessories, and enemies with guaranteed drops. The adventure implementation is described in [adventure system](docs/adventure-system.md).
 - The third pet door now starts the vacuum encounter instead of completing the run. Claw the rear filter; front suction costs one of nine lives. Retry after nine losses resets only the fight. The boss remains winnable without equipment.
 - Room-tier collars add pace and survive combat deaths; pendants add claw damage/hunger efficiency and are lost on combat death. Both persist across rooms for the current run. Optional clockwork mice warn/pounce and drop a snack or pendant on defeat. Ordinary environmental bumps remain nonlethal.
 - Shared jump rules validate generated hurdles/bridge approaches and reserve takeoff/landing space. Clear objective corridors and stairs remain available to hungry/heavy cats; equipment does not bypass their jump restrictions.
@@ -23,7 +27,7 @@ deployment status feed.
 - The user rejected boxy cats and rigid frame-by-frame sprites. The active character is a real skinned GLB rendered in Three.js. More polygons alone are not the solution to anatomy, clipping, or animation problems.
 - The setting is a house with furniture and vertical exploration, not a dungeon. There are three rooms: Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run.
 - Eat every required bowl, then reach the pet door. Room meal counts are 3/4/5: 12 total, with one upstairs in each room. The third door leads to the vacuum boss. Base completion earns 850 XP including the boss's 250 XP, before optional bonuses.
-- Eating restores satiety rapidly and adds chonk. Movement drains satiety/weight slowly; balanced condition is fastest. Satiety at or below 8 or chonk at or above 90 blocks jumping.
+- Required food restores energy with little weight; optional snacks add significant chonk and saved points, not objective progress. Movement drains energy/weight gradually; balanced condition is fastest. Satiety at or below 8 or chonk at or above 90 blocks jumping. Six seconds at zero loses a life with safe checkpoint energy recovery. See condition-system for tuning.
 - WASD/arrows move relative to the camera; W moves away from it, showing the cat's back. Shift trots, Space jumps, Q sits, F/LMB claws, E/RMB bites. Five idle seconds trigger grooming; movement interrupts it and automatic eating immediately.
 - Touch uses a left analog joystick, right-side swipe to look, action buttons, and a latched Trot toggle. Use Trot + Jump for longer jumps. Do not require pointer lock or synthesize sticky WASD keys for touch input.
 - Claw and bite damage clockwork mice at animation impact time. Only rear-facing claws damage the vacuum. This is a basic combat/equipment foundation, not a finished RPG, networking, or inventory-menu system.
@@ -40,10 +44,11 @@ deployment status feed.
 | Adventure rules | `adventure-rules.js`: run equipment/ownership, boss phase/attack/weak-point registries, health/lives/retry |
 | Adventure visuals/AI | `adventure-world.js`: original procedural vacuum, optional clockwork mice, pickups, loot and animation-impact interactions |
 | Jump planning | `jump-rules.js`: runtime pace/impulse and conservative generation envelope (38 satiety, 75 chonk, no equipment/catnip) |
+| Condition | `condition-rules.js`: recipes, metabolism, workouts, body thresholds and browser-local snack points; `body-trials.js`: optional slim/weight puzzles; `cat-condition-visual.js`: torso-only morph |
 | Generation | `course-generator.js`: seeded layouts, grid routes, reserved corridors and swept obstacle envelopes |
 | Character | `turkish-van-game-cat.glb`: 193,136 triangles, 24 skinned meshes, one armature |
 | Animation clips | Idle, Walk, Groom, Sit, Jump, Claw, Bite |
-| House scale | Floor 46 x 42, ceiling 7.2; cat scale 0.84, capsule radius 0.24, height 0.76; bowls scale 0.70 |
+| House scale | Floor 46 x 42, ceiling 7.2; cat scale 0.84, mass-dependent capsule radius 0.22-0.35, height 0.76; bowls scale 0.70 |
 | Vertical route | Gallery height 2.7; 18 stairs with 0.15 rise; protected launch/return shelves |
 | Catnip | Optional; 18 seconds of 1.32x speed and 1.18x jump impulse; regrows after 22 seconds; cannot bypass condition limits |
 | Course counts | 25/30/37 generated obstacles across the three rooms in verified layouts |

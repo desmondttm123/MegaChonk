@@ -18,6 +18,7 @@ agents and human contributors, not a running service or autonomous background jo
 - Preserve real skinned 3D rendering and interpolated skeletal animation. Do not revert to directional sprites, low-poly placeholders, or a different model just because its filename says v2/v3.
 - Aim for believable feline proportions and smooth third-person controls inspired by Stray. Do not use proprietary Stray assets or claim the prototype is AAA quality.
 - Keep hunger/chonk changes gradual and eating much faster than movement drain. Balanced condition should feel fastest; hungry/heavy cats have limited jumps.
+- Required meals and optional snacks are distinct. Snacks bank browser-local points, never supper progress. Preserve proportional fat/energy on interrupted bites, starvation recovery, safe gate exits and refill/workout routes; see `docs/condition-system.md`.
 - Preserve three completable rooms, upstairs routes, optional catnip jumps, and seeded obstacles with reachable objectives.
 
 ## Source Map
@@ -28,6 +29,9 @@ agents and human contributors, not a running service or autonomous background jo
 | Mouse input filtering and angular smoothing | `camera-controls.js` |
 | Virtual joystick, touch gestures, action buttons, lifecycle cleanup | `touch-controls.js` |
 | Shared jump/pace physics and conservative generation envelope | `jump-rules.js` |
+| Nutrition, metabolism, size thresholds and browser snack wallet | `condition-rules.js` |
+| Optional slim/weight trials and scratch-post interaction | `body-trials.js` |
+| Runtime torso-only weight blend shape | `cat-condition-visual.js` |
 | Persistent run equipment, reusable boss phases and attack rules | `adventure-rules.js` |
 | Enemy/pickup/boss visuals and world interaction | `adventure-world.js` |
 | Seeded obstacle placement and protected routes | `course-generator.js` |

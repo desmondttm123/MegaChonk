@@ -40,7 +40,9 @@ const hash = (data) => createHash("sha256").update(data).digest("hex");
     page.on("requestfailed", (request) => errors.push(`${request.url()}: ${request.failure()?.errorText}`));
     page.on("response", (response) => {
       if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
-      if (response.url().endsWith("/turkish-van-game-cat.glb")) modelBytes = response.body();
+      // Chromium can evict a large response body before CDP reads it. Handle
+      // that rejection immediately; verify the served asset explicitly below.
+      if (response.url().endsWith("/turkish-van-game-cat.glb")) modelBytes = response.body().catch(() => null);
     });
     await page.goto(target, { waitUntil: "networkidle", timeout: 60000 });
     await page.waitForFunction(() => window.__megaChonk?.state.ready, null, { timeout: 60000 });
@@ -48,7 +50,13 @@ const hash = (data) => createHash("sha256").update(data).digest("hex");
     if (!manifestResponse.ok()) throw new Error("Build manifest is not accessible");
     const manifest = await manifestResponse.json();
     const modelPath = "assets/models/turkish-van-game-cat.glb";
-    const actualHash = hash(await modelBytes);
+    let servedModel = await modelBytes;
+    if (!servedModel) {
+      const response = await page.request.get(new URL(modelPath, target).href);
+      if (!response.ok()) throw new Error("Hosted model is not accessible");
+      servedModel = await response.body();
+    }
+    const actualHash = hash(servedModel);
     if (actualHash !== manifest.files[modelPath].sha256 || actualHash !== hash(fs.readFileSync(path.join(root, modelPath)))) throw new Error("Hosted cat does not match the current local model");
     const credits = await page.request.get(new URL("credits.html", target).href);
     if (!credits.ok() || !(await credits.text()).includes("Jonas Dichelle")) throw new Error("Missing public attribution");

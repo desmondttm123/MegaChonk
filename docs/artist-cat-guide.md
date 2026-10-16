@@ -199,6 +199,14 @@ Known issues and integration help needed:
 
 ## Common Problems
 
+The game now adds a torso-only chonk morph in `cat-condition-visual.js` before
+rendering, plus a repeating eating action derived from Bite. The exported model
+still has seven source clips. Mesh replacements must preserve or deliberately
+adapt the TurkishVan body naming, Y-up bind geometry and Spine/Chest/Pelvis skin
+weights used by this augmentation. Review lean/heavy walk, sit, groom and eating
+poses using `tools/condition-test.js` as well as the normal visual suite. Runtime
+augmentation does not make its generated morph part of the editable `.blend`.
+
 | Symptom | First checks |
 | --- | --- |
 | Great Blender render, unchanged game | A render is not the runtime model; confirm the GLB was integrated, then inspect the fur material override and browser cache |

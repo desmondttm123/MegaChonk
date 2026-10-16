@@ -32,7 +32,7 @@ or `node_modules/` to make testing work.
 PowerShell syntax checks and deployment build:
 
 ```powershell
-foreach ($file in 'game.js', 'course-generator.js', 'camera-controls.js', 'touch-controls.js', 'jump-rules.js', 'adventure-rules.js', 'adventure-world.js') {
+foreach ($file in 'game.js', 'course-generator.js', 'camera-controls.js', 'touch-controls.js', 'jump-rules.js', 'adventure-rules.js', 'adventure-world.js', 'condition-rules.js', 'body-trials.js', 'cat-condition-visual.js') {
   Get-Content -Raw $file | node --input-type=module --check
   if ($LASTEXITCODE -ne 0) { throw "Syntax check failed: $file" }
 }
@@ -44,6 +44,8 @@ Browser test commands, run from the repository root:
 ```powershell
 node tools/smoke-test.js
 node tools/adventure-rules-test.js
+node tools/condition-rules-test.js
+node tools/condition-test.js
 node tools/adventure-test.js
 node tools/camera-controls-test.js
 node tools/mobile-controls-test.js
@@ -58,6 +60,7 @@ node tools/pages-test.js
 | Change | Required relevant checks |
 | --- | --- |
 | Gameplay, physics, progression, eating | Smoke, vertical challenges, full autoplay |
+| Appetite, weight, body trials, points | Condition rules/integration, adventure, generation, mobile, visual, both full autoplay seeds |
 | Bosses, enemies, equipment, rewards | Adventure rules, adventure integration, mobile controls, both full autoplay seeds |
 | Mouse/input/follow camera | Camera controls, smoke, Pages |
 | Touch controls or mobile layout | Mobile controls, camera controls, smoke, Pages; autoplay if shared movement changes |
@@ -66,7 +69,7 @@ node tools/pages-test.js
 | Packaging/imports/deployment | Syntax, runtime-only build, local Pages test, then live checks when release is authorized |
 | Documentation only | Check paths, commands, current-source consistency, Markdown links, and diff; no need to regenerate assets or replay unchanged gameplay |
 
-Test servers use ports 4173-4181 and are started/stopped by the scripts. Stop a
+Test servers use ports 4173-4182 and are started/stopped by the scripts. Stop a
 manually launched server on a conflicting port first. Test captures are written
 under `assets/previews/`; inspect changed images before staging them. Use
 `tools/capture-screenshot.js` for captures to handle transient Windows PNG locks.

@@ -180,6 +180,8 @@ kbd { font: inherit; }
 .boss-mode .objective-panel { display: none; }
 #boss-retry p { max-width: 500px; line-height: 1.6; margin: 6px 0; }
 #retry-boss { margin-top: 24px; }
+#room-retry p { max-width: 500px; line-height: 1.6; }
+#retry-room { margin-top: 24px; }
 
 .controls-card { left: 24px; bottom: 24px; display: flex; gap: 15px; padding: 10px 13px; color: var(--muted); font: 500 10px/1 "Segoe UI", sans-serif; }
 kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }

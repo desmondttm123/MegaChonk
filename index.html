@@ -22,7 +22,7 @@
       <div class="boot-mark" aria-hidden="true"><span></span><span></span></div>
       <p class="eyebrow">Three rooms. Nine lives. One appetite.</p>
       <h1>MEGA<br /><em>CHONK</em></h1>
-      <p class="boot-copy">Guide a Turkish Van. Explore upstairs. Find catnip. Rule the house.</p>
+      <p class="boot-copy">Eat supper to progress. Treats earn points and chonk. Stay lean to leap, get heavy for plates. Claw the scratch post to trim down.</p>
       <button id="enter-game" type="button" disabled>Enter the house</button>
       <p id="load-status" class="load-status">Preparing the house...</p>
       <p id="input-hint" class="input-hint">WASD to move. Mouse to look. Space to jump.</p>
@@ -96,6 +96,12 @@
       <button id="retry-boss" type="button">Retry vacuum fight</button>
     </section>
     <div class="cinematic-bars" aria-hidden="true"></div>
+    <section id="room-retry" class="completion-screen is-hidden" aria-labelledby="room-retry-title">
+      <p class="eyebrow">Nine lives spent</p>
+      <h2 id="room-retry-title">CAT NAP</h2>
+      <p>Wake at your checkpoint with fresh energy and nine lives. Meals, collar and snack points stay; your pendant is lost.</p>
+      <button id="retry-room" type="button">Wake up and continue</button>
+    </section>
     <div class="vignette" aria-hidden="true"></div>
     <script type="module" src="./game.js"></script>
   </body>

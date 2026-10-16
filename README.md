@@ -63,14 +63,17 @@ Portrait and landscape layouts are supported, with safe-area spacing for phone e
 
 ## Core Loop
 
-Find every bowl in a room, then reach the glowing pet door. Clear Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run, then defeat the giant vacuum to finish a run.
+Find every **supper objective** in a room, then reach the glowing pet door. Optional treats, lean supper, and catnip do not count toward that objective. Clear Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run, then defeat the giant vacuum to finish a run.
 
 - Movement accelerates and decelerates instead of starting or stopping instantly.
 - The cat smoothly turns toward camera-relative movement.
-- Eating restores satiety quickly and adds chonk; movement drains both very slowly.
+- Required meals restore 8 satiety (up to 80) with just 0.8 chonk. Optional rich snacks restore 10 satiety, add 9 chonk, and bank 25 snack points. Bonus stashes grant 60 points and 3 chonk. Points are separate from XP and saved in this browser for a future shop; there is no shop yet.
 - Stop beside a bowl to eat automatically. Moving away interrupts eating immediately.
 - The cat is fastest near balanced satiety and slows when hungry, overfull, or heavy.
-- A starving cat cannot leap, while a cat at maximum chonk must exercise before jumping again.
+- Satiety at or below 8 blocks leaping; chonk at or above 90 blocks it too. Healthy jumps travel farther than before, and progressive weight reduces both pace and distance. The torso visibly fills out as chonk rises, without enlarging the head or paws.
+- Energy drains gradually: roughly 27 satiety per minute of continuous trotting, far slower than eating. Warnings appear at 20 and 8. Six active seconds at zero costs a life and the pendant, then restores energy at the checkpoint. Rooms have nine lives and a checkpoint continue; the boss has its own nine-life fight.
+- Every room has an optional **slim stash** (60 chonk or less) and **heavy stash** (hold the plate at 64 chonk or more). Weight gates latch open, and slim filters always let occupants out. These puzzles never block required meals or the pet door.
+- Claw the marked scratch post near the entrance to lose 4 chonk at a cost of 1.5 energy. The nearby lean supper gives 14 energy and no fat, refilling after 32 seconds. Rich snacks near the weight plate refill after 30 seconds. Normal movement also gradually trims weight.
 - Extra weight progressively shortens jumps without making a normal run unwinnable.
 - Every room has an oak staircase and an upstairs gallery at 2.7 game units, with one required meal upstairs. Walk onto the stairs; repeated jumping is not needed.
 - The green catnip bowl upstairs grants 18 seconds of +32% speed and +18% jump impulse. Use `Shift` + `Space` (or **Trot** + **Jump** on touch) from the marked balcony opening to reach the bonus perch, then descend the shelves.
@@ -90,7 +93,7 @@ Each room has an optional blue collar and gold pendant. Walk into a pickup to eq
 
 - Collars grant +3%, +6%, or +9% movement speed by tier and survive deaths.
 - Pendants double claw damage and reduce movement hunger drain by 10%, 20%, or 30%. A combat death removes the pendant, not the collar.
-- Clockwork-mouse enemies patrol optional areas, show a warning ring, then pounce. Claw or bite while facing them; every defeat drops a fish snack or pendant. Snacks restore six satiety without extra chonk. Ordinary spills/vacuum bumps remain nonlethal checkpoint setbacks.
+- Clockwork-mouse enemies patrol optional areas, show a warning ring, then pounce. Claw or bite while facing them; every defeat drops a rich fish snack or pendant. Fish snacks add 10 satiety, 9 chonk and 25 snack points, not objective progress. Ordinary spills/vacuum bumps remain nonlethal checkpoint setbacks.
 - Generated hurdles use the same jump physics as the cat, with conservative height/range margins and reserved run-up/landing space. Planning assumes at least 38 satiety and at most 75 chonk, without equipment or catnip. Hunger/heavy jump restrictions still apply; clear corridors and stairs remain available rather than forcing a blocked jump.
 
 ## Final Vacuum Boss
@@ -122,6 +125,8 @@ Regenerate with Blender 3.4 in the project directory:
 This runs in a separate process and does not alter an open Blender scene.
 
 ## Verification
+
+`tools/condition-rules-test.js` checks pure nutrition, pace, jumps, workouts and point saving. `tools/condition-test.js [URL]` tests continuous eating animation, interruptions/partial bites, snack-earned weight, physical size gates, pressure plates, workouts, lean feeding, measured jump ranges, starvation/retry and browser-persisted points. See [condition design and verification](docs/condition-system.md) for tuning and test boundaries.
 
 `tools/smoke-test.js` checks skinned mesh loading, exported coat colors, all action states, movement orientation, grooming interruption, satiety drain, jump limits, house systems, and screenshots.
 

@@ -34,8 +34,13 @@ jobs:
           node --input-type=module --check < jump-rules.js
           node --input-type=module --check < adventure-rules.js
           node --input-type=module --check < adventure-world.js
+          node --input-type=module --check < condition-rules.js
+          node --input-type=module --check < cat-condition-visual.js
+          node --input-type=module --check < body-trials.js
       - name: Check adventure rules
         run: node tools/adventure-rules-test.js
+      - name: Check condition balance
+        run: node tools/condition-rules-test.js
       - name: Build runtime-only site
         run: python3 tools/build_pages.py
       - name: Configure GitHub Pages
