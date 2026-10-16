@@ -58,10 +58,12 @@ Find every bowl in a room, then reach the glowing pet door. Complete Living Room
 - Catnip returns after 22 seconds. It has no chonk cost and does not bypass starving/heavy jump restrictions. Catnip and the bonus treat are optional, not requirements for opening the pet door.
 - After five seconds without input, the cat transitions into its grooming animation.
 - Sofas, counters, storage boxes, cushions, spills, robot vacuums, raised ottomans, moving footstools, and cat-bed checkpoints form the obstacle courses.
-- Each run varies household clutter while protected zones keep every bowl, spawn point, checkpoint, and pet door accessible.
+- The house has a 46 x 42-unit footprint, nearly twice the previous floor area, and the cat is 37% smaller. The camera, collision capsule, bowls, and shadow match the corrected proportions.
+- Each run seed generates hurdle dimensions, spill/bridge locations, vacuum positions and phases, and mixed household clutter: 25, 30, and 37 generated obstacles across the three rooms. Food locations also vary within safe zones.
+- A grid route planner reserves clear corridors to bowls, stairs, checkpoints, and pet doors before placing obstacles. Moving-platform travel and rotating-vacuum reach are included in placement clearance. The structural upstairs route stays fixed so its catnip jump remains reliable.
 - The cat is visible from any angle with interpolated bone animation and smooth transitions between actions.
 - Foot targets guide the walk cycle and seated poses; the idle clip includes breathing, blinking, head turns, ear movement, and tail sway. Forelegs have higher anatomical elbows, articulated scapulae, and smoothed joint weights.
-- Fur uses white/chestnut vertex colors, subtle surface detail, and a soft sheen. This is an improved game prototype rather than a production AAA animal asset.
+- Fur uses white/chestnut vertex colors, subtle surface detail, and a soft sheen. Larger inset eyes have round, almost-black night pupils, thin amber iris edges, and animated eyelids. This is an improved game prototype rather than a production AAA animal asset.
 
 ## Main Assets
 
@@ -87,7 +89,9 @@ This runs in a separate process and does not alter an open Blender scene.
 
 `tools/smoke-test.js` checks skinned mesh loading, exported coat colors, all action states, movement orientation, grooming interruption, satiety drain, jump limits, house systems, and screenshots.
 
-`tools/visual-cat-test.js` captures four viewing angles and several animation poses, samples deformed geometry for floor penetration, and reports frame timing.
+`tools/visual-cat-test.js` captures four viewing angles and several animation poses, checks night-pupil colors and eye aperture size, samples deformed geometry for floor penetration, and reports frame timing.
+
+`tools/generation-test.js` checks 90 seeded layouts across all three rooms for reproducibility, obstacle counts, overlapping obstacles, protected corridors, and routes through the actual collision/hazard geometry to every ground-floor objective and the stairs.
 
 `tools/vertical-challenges-test.js` walks up and down stairs in all three rooms, compares normal and catnip-assisted long jumps, checks boost expiry and hunger/weight limits, and tests the gallery underside collision.
 

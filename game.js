@@ -5,6 +5,13 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { footprint, generateCourse } from "./course-generator.js";
+
+const CAT_SCALE = 0.84;
+const CAT_BODY_HEIGHT = 0.76;
+const FOOD_SCALE = 0.70;
+const HOUSE = { width: 46, depth: 42, height: 7.2 };
+const WORLD_BOUNDS = { minX: -21.5, maxX: 21.5, minZ: -19.3, maxZ: 19.3 };
 
 const canvas = document.querySelector("#game");
 const ui = {
@@ -68,6 +75,7 @@ const hazards = [];
 const checkpointMarkers = [];
 const verticalRoutes = [];
 const worldSigns = [];
+let generatedCourse = null;
 const levelRoot = new THREE.Group();
 levelRoot.name = "GeneratedLevel";
 scene.add(levelRoot);
@@ -122,7 +130,7 @@ const character = {
   currentAction: null,
   velocity: new THREE.Vector3(),
   heading: Math.PI,
-  radius: 0.36,
+  radius: 0.24,
   triangleCount: 0,
   clipCount: 0,
   skinnedMeshCount: 0,
@@ -149,24 +157,24 @@ const LEVELS = [
     name: "Living Room Zoomies",
     description: "Raid the bowls upstairs. Follow the oak stairs, then try the catnip balcony leap.",
     foods: 3,
-    spawn: [0, 0, 10.8],
-    goal: [0, -11.15],
+    spawn: [0, 0, 15.2],
+    goal: [0, -18.4],
     theme: "living",
   },
   {
     name: "Kitchen Counter Caper",
     description: "Cross the spills and climb to the pantry loft. Catnip opens a longer shelf jump.",
     foods: 4,
-    spawn: [0, 0, 11.1],
-    goal: [0, -11.15],
+    spawn: [0, 0, 15.2],
+    goal: [0, -18.4],
     theme: "kitchen",
   },
   {
     name: "Attic Midnight Run",
     description: "Search the playroom and upper gallery. Take the stairs or leap between high perches.",
     foods: 5,
-    spawn: [0, 0, 11.1],
-    goal: [0, -11.15],
+    spawn: [0, 0, 15.2],
+    goal: [0, -18.4],
     theme: "attic",
   },
 ];
@@ -292,10 +300,10 @@ const textures = {
   carpet: makeTexture("carpet"),
   wallpaper: makeTexture("wallpaper"),
 };
-textures.woodFloor.repeat.set(5, 8);
-textures.tile.repeat.set(5, 5);
-textures.carpet.repeat.set(8, 7);
-textures.wallpaper.repeat.set(5, 2);
+textures.woodFloor.repeat.set(7, 12);
+textures.tile.repeat.set(7, 7);
+textures.carpet.repeat.set(11, 10);
+textures.wallpaper.repeat.set(7, 2.4);
 
 const materials = {
   floorWood: new THREE.MeshStandardMaterial({ map: textures.woodFloor, color: 0xb4835c, roughness: 0.62, metalness: 0.02 }),
@@ -445,7 +453,8 @@ function addHousePlant(x, z, scale = 1) {
 function addCeilingLight(x, z, color = 0xffc98d) {
   const raised = z < -3;
   const offset = raised ? 0.8 : 0;
-  addCylinder("PendantCord", x, raised ? 5.66 : 5.16, z, 0.022, 0.022, raised ? 0.28 : 1.05, materials.metal, 12);
+  const cordBottom = 4.79 + offset;
+  addCylinder("PendantCord", x, (HOUSE.height + cordBottom) / 2, z, 0.022, 0.022, HOUSE.height - cordBottom, materials.metal, 12);
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.5, 0.34, 28, 1, true), materials.woodLight);
   shade.position.set(x, 4.62 + offset, z);
   shade.castShadow = true;
@@ -547,6 +556,7 @@ function clearLevel() {
   checkpointMarkers.length = 0;
   verticalRoutes.length = 0;
   worldSigns.length = 0;
+  generatedCourse = null;
   eatingTarget = null;
   activeGoal = null;
   character.currentPlatform = null;
@@ -558,64 +568,64 @@ function buildLevelShell(definition, random) {
     : definition.theme === "kitchen"
       ? materials.floorTile
       : materials.floorCarpet;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(34, 29), floorMaterial);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(HOUSE.width, HOUSE.depth), floorMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   levelRoot.add(ground);
-  addSurface(0, 0, 34, 29, 0, ground);
+  addSurface(0, 0, HOUSE.width, HOUSE.depth, 0, ground);
 
   const wallMaterial = definition.theme === "living"
     ? materials.wallpaperSage
     : definition.theme === "kitchen"
       ? materials.wallpaperCream
       : materials.wallpaperAttic;
-  addBox("BackWall", new THREE.Vector3(0, 3, -13.35), new THREE.Vector3(30, 6, 0.9), wallMaterial, { collider: true, occluder: true, radius: 0.08 });
-  addBox("LeftWall", new THREE.Vector3(-15.25, 3, 0), new THREE.Vector3(0.9, 6, 28), wallMaterial, { collider: true, occluder: true, radius: 0.08 });
-  addBox("RightWall", new THREE.Vector3(15.25, 3, 0), new THREE.Vector3(0.9, 6, 28), wallMaterial, { collider: true, occluder: true, radius: 0.08 });
-  addBox("EntryWallLeft", new THREE.Vector3(-9.2, 3, 13.65), new THREE.Vector3(12, 6, 0.8), wallMaterial, { collider: true, occluder: true });
-  addBox("EntryWallRight", new THREE.Vector3(9.2, 3, 13.65), new THREE.Vector3(12, 6, 0.8), wallMaterial, { collider: true, occluder: true });
-  addBox("Ceiling", new THREE.Vector3(0, 5.92, 0), new THREE.Vector3(30.4, 0.16, 28), materials.ceiling, { radius: 0.04 });
-  for (const x of [-15.0, 15.0]) addBox("Baseboard", new THREE.Vector3(x + (x < 0 ? 0.48 : -0.48), 0.15, 0), new THREE.Vector3(0.12, 0.3, 27.4), materials.trim, { radius: 0.025 });
-  addBox("BackBaseboard", new THREE.Vector3(0, 0.15, -12.86), new THREE.Vector3(29.1, 0.3, 0.12), materials.trim, { radius: 0.025 });
+  addBox("BackWall", new THREE.Vector3(0, HOUSE.height / 2, -20.35), new THREE.Vector3(45, HOUSE.height, 0.9), wallMaterial, { collider: true, occluder: true, radius: 0.08 });
+  for (const x of [-22.25, 22.25]) addBox("SideWall", new THREE.Vector3(x, HOUSE.height / 2, 0), new THREE.Vector3(0.9, HOUSE.height, 41.5), wallMaterial, { collider: true, occluder: true, radius: 0.08 });
+  for (const x of [-12.8, 12.8]) addBox("EntryWall", new THREE.Vector3(x, HOUSE.height / 2, 20.35), new THREE.Vector3(19, HOUSE.height, 0.8), wallMaterial, { collider: true, occluder: true });
+  addBox("Ceiling", new THREE.Vector3(0, HOUSE.height, 0), new THREE.Vector3(45, 0.16, 41.5), materials.ceiling, { radius: 0.04 });
+  for (const x of [-21.74, 21.74]) addBox("Baseboard", new THREE.Vector3(x, 0.15, 0), new THREE.Vector3(0.12, 0.3, 40), materials.trim, { radius: 0.025 });
+  addBox("BackBaseboard", new THREE.Vector3(0, 0.15, -19.86), new THREE.Vector3(43.5, 0.3, 0.12), materials.trim, { radius: 0.025 });
 
-  for (const x of [-8.2, 8.2]) addWindow(x, 3.3, -12.84, 3.2, 2.15);
-  for (const [x, z] of [[-7.6, 7.4], [7.6, 1.1], [-7.6, -6.0], [7.6, -9.0]]) addCeilingLight(x, z, definition.theme === "attic" ? 0xffb66e : 0xffd19c);
+  for (const x of [-15, -7.5, 7.5, 15]) addWindow(x, 3.6, -19.84, 3.8, 2.5);
+  for (const x of [-12, 0, 12]) for (const z of [-13, 1, 13]) addCeilingLight(x, z, definition.theme === "attic" ? 0xffb66e : 0xffd19c);
 
   if (definition.theme === "living") {
     addRug(0, 1.3, 11.2, 7.0, materials.upholsteryWarm);
-    addCouch(-10.7, 4.4, materials.upholstery);
-    addCouch(10.4, -4.6, materials.upholsteryWarm);
-    addBookcase(11.8, 7.9, 2.75);
-    addBookcase(-11.8, -7.8, 2.45);
-    addHousePlant(-9.6, -1.8, 0.95);
-    addHousePlant(10.2, 3.7, 0.82);
-    addBox("CoffeeTable", new THREE.Vector3(8.7, 0.34, 7.4), new THREE.Vector3(2.8, 0.68, 1.55), materials.woodLight, { collider: true, surface: true, radius: 0.13 });
+    addCouch(-17.7, 5.4, materials.upholstery);
+    addCouch(17.4, -6.6, materials.upholsteryWarm);
+    addBookcase(19.2, 12.9, 2.75);
+    addBookcase(-19.2, -14.8, 2.45);
+    addHousePlant(-18.6, -3.8, 1.15);
+    addHousePlant(18.2, 5.7, 1.12);
+    addRug(-16.8, 4.2, 7.0, 5.0, materials.upholstery);
+    addRug(16.8, -7.8, 7.0, 5.0, materials.upholsteryWarm);
+    addBox("CoffeeTable", new THREE.Vector3(15.7, 0.34, 11.4), new THREE.Vector3(2.8, 0.68, 1.55), materials.woodLight, { collider: true, surface: true, radius: 0.13 });
   }
 
   if (definition.theme === "kitchen") {
     for (const side of [-1, 1]) {
-      for (const z of [7.0, 0.4, -6.4]) addKitchenCounter(side * (10.6 + random() * 0.35), z, 3.5);
+      for (const z of [12.0, 4.4, -5.4, -14]) addKitchenCounter(side * (18.6 + random() * 0.35), z, 3.5);
     }
-    addBox("Refrigerator", new THREE.Vector3(-12.0, 1.25, -10.2), new THREE.Vector3(2.15, 2.5, 1.8), materials.metal, { collider: true, occluder: true, radius: 0.11 });
-    addBox("DiningTable", new THREE.Vector3(9.1, 0.72, 10.0), new THREE.Vector3(3.8, 0.18, 2.4), materials.woodLight, { collider: true, surface: true, radius: 0.08 });
-    for (const x of [7.8, 10.4]) addBox("DiningChair", new THREE.Vector3(x, 0.46, 8.45), new THREE.Vector3(0.82, 0.92, 0.82), materials.wood, { collider: true, radius: 0.08 });
-    addHousePlant(-11.8, 10.2, 0.68);
+    addBox("Refrigerator", new THREE.Vector3(-19.0, 1.25, -17.2), new THREE.Vector3(2.15, 2.5, 1.8), materials.metal, { collider: true, occluder: true, radius: 0.11 });
+    addBox("DiningTable", new THREE.Vector3(13.1, 0.72, 14.0), new THREE.Vector3(3.8, 0.18, 2.4), materials.woodLight, { collider: true, surface: true, radius: 0.08 });
+    for (const x of [11.8, 14.4]) addBox("DiningChair", new THREE.Vector3(x, 0.46, 12.45), new THREE.Vector3(0.82, 0.92, 0.82), materials.wood, { collider: true, radius: 0.08 });
+    addHousePlant(-19.8, 16.2, 1.08);
   }
 
   if (definition.theme === "attic") {
     addRug(0, 2.2, 10.4, 6.4, materials.upholsteryGold);
-    for (const z of [9.0, 2.8, -3.5, -9.2]) {
-      addStorageStack(-11.5 + random() * 0.5, z, random);
-      addStorageStack(11.5 - random() * 0.5, z + (random() - 0.5) * 0.7, random);
+    for (const z of [15, 8.0, 0.8, -7.5, -16.2]) {
+      addStorageStack(-19.5 + random() * 0.5, z, random);
+      addStorageStack(19.5 - random() * 0.5, z + (random() - 0.5) * 0.7, random);
     }
-    for (const z of [8.5, 1.5, -5.5]) addBox("AtticBeam", new THREE.Vector3(0, 5.15, z), new THREE.Vector3(29.5, 0.3, 0.32), materials.wood, { radius: 0.05 });
-    addCatTree(9.1, 5.7);
-    addHousePlant(-9.3, -7.0, 0.72);
+    for (const z of [14.5, 5.5, -4.5, -14]) addBox("AtticBeam", new THREE.Vector3(0, 6.65, z), new THREE.Vector3(44, 0.3, 0.32), materials.wood, { radius: 0.05 });
+    addCatTree(16.1, 5.7);
+    addHousePlant(-16.3, -7.0, 1.02);
   }
 }
 
 function createJumpBarrier(x, z, width, height, material = materials.upholsteryWarm) {
-  const barrier = addBox("CushionHurdle", new THREE.Vector3(x, height / 2, z), new THREE.Vector3(width, height, 0.4), material, { collider: true, radius: 0.11 });
+  const barrier = addBox("CushionHurdle", new THREE.Vector3(x, height / 2, z), new THREE.Vector3(width, height, 0.4), material, { collider: true, surface: true, radius: 0.11 });
   const marker = addBox("CushionPiping", new THREE.Vector3(x, height + 0.015, z), new THREE.Vector3(width * 0.92, 0.035, 0.42), materials.trim, { castShadow: false, radius: 0.015 });
   marker.userData.decorative = true;
   return barrier;
@@ -815,45 +825,50 @@ function createGoal(x, z) {
   activeGoal = { group, marker, light, position: new THREE.Vector3(x, 0, z), active: false };
 }
 
-function obstacleAreaIsClear(x, z, width, spawn) {
-  const half = width / 2 + 0.28;
-  if (verticalRoutes.some((route) => Math.hypot(x - route.stairs.entry[0], z - route.stairs.entry[2]) < half + 1.3)) return false;
-  if (colliders.some((box) => x + half > box.minX && x - half < box.maxX && z + half > box.minZ && z - half < box.maxZ)) return false;
-  if (foods.some((food) => Math.hypot(x - food.group.position.x, z - food.group.position.z) < half + 1.45)) return false;
-  if (activeGoal && Math.hypot(x - activeGoal.position.x, z - activeGoal.position.z) < half + 1.7) return false;
-  if (Math.hypot(x - spawn[0], z - spawn[2]) < half + 1.8) return false;
-  if (checkpointMarkers.some((checkpoint) => Math.hypot(x - checkpoint.position.x, z - checkpoint.position.z) < half + 1.25)) return false;
-  for (const hazard of hazards) {
-    if (hazard.type === "spill") {
-      if (x + half > hazard.minX && x - half < hazard.maxX && z + half > hazard.minZ && z - half < hazard.maxZ) return false;
-    } else if (Math.hypot(x - hazard.group.position.x, z - hazard.group.position.z) < half + hazard.length + 0.55) return false;
+function buildGeneratedCourse(definition, random, difficulty) {
+  const jitter = (amount) => (random() - 0.5) * amount;
+  const height = 0.58 + difficulty * 0.08;
+  const platform = createStaticPlatform(-3.4 + jitter(2.0), 3.2 + jitter(1.5), 2.5, 2.5, height);
+  const floorAnchors = [[-5.0, 11.2], [6.0, 7.4], [-12.0, -2.0]];
+  for (let index = 0; index < definition.foods - 2; index += 1) {
+    const [x, z] = floorAnchors[index];
+    createFood(x + jitter(2.4), z + jitter(2.0), FOOD_LABELS[(difficulty + index) % FOOD_LABELS.length]);
   }
-  return true;
-}
+  createFood(platform.position.x, platform.position.z, "FISH", height);
+  createFood(difficulty === 2 ? -2.3 : 6.1, -10.2, "SUPPER", 2.7);
+  createCheckpoint(0, 0.2);
 
-function addRandomObstacles(random, count, theme, spawn) {
-  let placed = 0;
-  let attempts = 0;
-  while (placed < count && attempts < count * 40) {
-    attempts += 1;
-    const side = random() < 0.5 ? -1 : 1;
-    const x = side * (4.6 + random() * 7.0);
-    const z = -9.8 + random() * 19.6;
-    const width = 0.75 + random() * 0.9;
-    if (!obstacleAreaIsClear(x, z, width, spawn)) continue;
-    if (theme === "living") {
-      const height = 0.24 + random() * 0.22;
-      addBox("FloorCushion", new THREE.Vector3(x, height / 2, z), new THREE.Vector3(width * 1.25, height, width), random() > 0.5 ? materials.upholsteryGold : materials.upholsteryWarm, { collider: true, surface: true, radius: 0.12 });
-    } else if (theme === "kitchen") {
-      const height = 0.62 + random() * 0.32;
-      addBox("KitchenStool", new THREE.Vector3(x, height / 2, z), new THREE.Vector3(width, height, width), materials.woodLight, { collider: true, surface: true, radius: 0.08 });
-      addBox("StoolSeat", new THREE.Vector3(x, height + 0.035, z), new THREE.Vector3(width * 1.05, 0.07, width * 1.05), materials.upholstery, { radius: 0.05 });
+  const targets = [
+    ...foods.filter((food) => food.required && food.baseY < 2).map((food) => [food.group.position.x, food.baseY, food.group.position.z]),
+    verticalRoutes[0].stairs.entry,
+    activeGoal.position.toArray(),
+    [0, 0, 0.2],
+  ];
+  generatedCourse = generateCourse({
+    random, difficulty, bounds: WORLD_BOUNDS, boxes: colliders,
+    spawn: definition.spawn, targets, bodyHeight: CAT_BODY_HEIGHT,
+    protectedAreas: [
+      footprint(-7.5, -3.8, 3.8, 11.0),
+      footprint(4.5, -5.3, 4.0, 8.5),
+      footprint(8.7, 2.4, 4.0, 8.0),
+    ],
+  });
+  for (const obstacle of generatedCourse.obstacles) {
+    const { type, x, z, width, depth, height: top, phase } = obstacle;
+    if (type === "bridge") {
+      createSpill(x, z, width, depth);
+      createMovingPlatform(x, z, 1.65, 1.4, top, [1, 0, 0], (width - 1.65) / 2 - 0.1, 0.8 + difficulty * 0.12, phase);
+    } else if (type === "vacuum") {
+      createRobotVacuum(x, z, obstacle.length, (difficulty % 2 ? -1 : 1) * (1.0 + difficulty * 0.22), phase);
+    } else if (type === "hurdle") {
+      createJumpBarrier(x, z, width, top, definition.theme === "kitchen" ? materials.woodLight : materials.upholsteryGold);
     } else {
-      const height = 0.5 + random() * 0.68;
-      addBox("MovingBox", new THREE.Vector3(x, height / 2, z), new THREE.Vector3(width, height, width), materials.cardboard, { collider: true, surface: height < 0.82, radius: 0.055 });
-      addBox("BoxTape", new THREE.Vector3(x, height + 0.012, z), new THREE.Vector3(width * 0.18, 0.024, width * 0.96), materials.trim, { castShadow: false, radius: 0.008 });
+      const style = (obstacle.style + difficulty) % 3;
+      const material = [materials.upholsteryWarm, materials.woodLight, materials.cardboard][style];
+      addBox(["FloorCushion", "KitchenStool", "MovingBox"][style], new THREE.Vector3(x, top / 2, z), new THREE.Vector3(width, top, depth), material, { collider: true, surface: true, radius: style === 0 ? 0.12 : 0.055 });
+      if (style === 2) addBox("BoxTape", new THREE.Vector3(x, top + 0.012, z), new THREE.Vector3(width * 0.18, 0.024, depth * 0.96), materials.trim, { castShadow: false, radius: 0.008 });
+      if (style === 1) addBox("StoolSeat", new THREE.Vector3(x, top + 0.025, z), new THREE.Vector3(width, 0.05, depth), materials.upholstery, { radius: 0.025 });
     }
-    placed += 1;
   }
 }
 
@@ -861,7 +876,6 @@ function buildLevel(levelIndex, announce = true) {
   clearLevel();
   const definition = LEVELS[levelIndex];
   const random = createLevelRandom(levelIndex);
-  const jitter = (amount = 1) => (random() - 0.5) * amount;
   state.level = levelIndex;
   state.levelFoodEaten = 0;
   state.eatingTime = 0;
@@ -874,47 +888,7 @@ function buildLevel(levelIndex, announce = true) {
   buildVerticalRoute(definition);
   createGoal(definition.goal[0], definition.goal[1]);
 
-  if (definition.theme === "living") {
-    createJumpBarrier(jitter(1.4), 6.0 + jitter(0.5), 5.4, 0.52, materials.upholsteryGold);
-    const platform = createStaticPlatform(-4.2 + jitter(0.5), 1.8, 2.7, 2.7, 0.58);
-    createSpill(4.0, -1.9 + jitter(0.4), 4.8, 2.5);
-    createMovingPlatform(4.0, -1.9 + jitter(0.4), 1.7, 1.35, 0.36, [1, 0, 0], 1.25, 1.05, random() * Math.PI * 2);
-    createRobotVacuum(-3.1 + jitter(0.7), -5.1, 2.7, 1.15, random() * Math.PI * 2);
-    createCheckpoint(0, 0.2);
-    createFood(-5.4 + jitter(0.7), 8.1, FOOD_LABELS[0]);
-    createFood(platform.position.x, platform.position.z, FOOD_LABELS[1], 0.58);
-    createFood(6.1, -10.2, FOOD_LABELS[2], 2.7);
-    addRandomObstacles(random, 7, definition.theme, definition.spawn);
-  } else if (definition.theme === "kitchen") {
-    createSpill(0, 6.0 + jitter(0.4), 8.6, 2.25);
-    createMovingPlatform(0, 6.0, 2.0, 1.4, 0.38, [1, 0, 0], 3.0, 0.78, random() * Math.PI * 2);
-    createJumpBarrier(-2.5 + jitter(0.6), 2.4, 4.8, 0.68, materials.woodLight);
-    createRobotVacuum(4.1, -0.7 + jitter(0.6), 3.0, -1.45, random() * Math.PI * 2);
-    const platform = createStaticPlatform(-4.8, -4.8 + jitter(0.5), 3.0, 2.5, 0.72);
-    createMovingPlatform(2.0, -7.4, 2.2, 1.45, 0.42, [0, 1, 0], 0.38, 0.9, random() * Math.PI * 2);
-    createCheckpoint(0, -1.8);
-    createFood(-6.2, 8.4, FOOD_LABELS[3]);
-    createFood(6.1, 3.4, FOOD_LABELS[4]);
-    createFood(platform.position.x, platform.position.z, FOOD_LABELS[5], 0.72);
-    createFood(6.1, -10.2, FOOD_LABELS[1], 2.7);
-    addRandomObstacles(random, 9, definition.theme, definition.spawn);
-  } else {
-    createJumpBarrier(jitter(0.8), 7.5, 7.0, 0.78, materials.upholsteryWarm);
-    createSpill(-3.9, 3.9 + jitter(0.5), 5.2, 2.8);
-    createMovingPlatform(-3.9, 3.9, 1.8, 1.45, 0.4, [1, 0, 0], 1.45, 1.15, random() * Math.PI * 2);
-    const playTable = createStaticPlatform(4.6, 1.3 + jitter(0.4), 3.1, 3.1, 0.78);
-    createRobotVacuum(-1.4, -2.0, 3.4, 1.75, random() * Math.PI * 2);
-    createSpill(3.2, -5.2, 6.0, 2.8);
-    createMovingPlatform(3.2, -5.2, 1.9, 1.5, 0.42, [1, 0, 0], 2.0, 1.25, random() * Math.PI * 2);
-    createMovingPlatform(-4.7, -7.7, 2.2, 1.7, 0.5, [0, 1, 0], 0.48, 0.8, random() * Math.PI * 2);
-    createCheckpoint(0, -2.8);
-    createFood(-6.2, 9.0, FOOD_LABELS[2]);
-    createFood(playTable.position.x, playTable.position.z, FOOD_LABELS[5], 0.78);
-    createFood(-5.8, -0.8, FOOD_LABELS[0]);
-    createFood(6.4, -7.8, FOOD_LABELS[1]);
-    createFood(-2.3, -10.0, FOOD_LABELS[6], 2.7);
-    addRandomObstacles(random, 11, definition.theme, definition.spawn);
-  }
+  buildGeneratedCourse(definition, random, levelIndex);
 
   const spawn = new THREE.Vector3(...definition.spawn);
   character.root.position.copy(spawn);
@@ -945,6 +919,7 @@ function createFood(x, z, label, y = 0, options = {}) {
   halo.position.y = 0.65;
   group.add(halo);
   group.position.set(x, y, z);
+  group.scale.setScalar(FOOD_SCALE);
   levelRoot.add(group);
   foods.push({
     group,
@@ -969,21 +944,21 @@ function addAtmosphere() {
   windowLight.position.set(-8, 13, 6);
   windowLight.castShadow = true;
   windowLight.shadow.mapSize.set(2048, 2048);
-  windowLight.shadow.camera.left = -18;
-  windowLight.shadow.camera.right = 18;
-  windowLight.shadow.camera.top = 18;
-  windowLight.shadow.camera.bottom = -18;
+  windowLight.shadow.camera.left = -26;
+  windowLight.shadow.camera.right = 26;
+  windowLight.shadow.camera.top = 26;
+  windowLight.shadow.camera.bottom = -26;
   windowLight.shadow.camera.near = 1;
-  windowLight.shadow.camera.far = 45;
+  windowLight.shadow.camera.far = 60;
   windowLight.shadow.bias = -0.00008;
   windowLight.shadow.normalBias = 0.025;
   scene.add(windowLight);
 
   const positions = new Float32Array(520 * 3);
   for (let i = 0; i < 520; i += 1) {
-    positions[i * 3] = (seededRandom(i + 101) - 0.5) * 30;
+    positions[i * 3] = (seededRandom(i + 101) - 0.5) * HOUSE.width;
     positions[i * 3 + 1] = 0.4 + seededRandom(i + 202) * 5.8;
-    positions[i * 3 + 2] = (seededRandom(i + 303) - 0.5) * 27;
+    positions[i * 3 + 2] = (seededRandom(i + 303) - 0.5) * HOUSE.depth;
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -1062,7 +1037,7 @@ async function loadCat() {
 
   character.model = gltf.scene;
   character.model.name = "TurkishVanSkinnedRig";
-  character.model.scale.setScalar(1.34);
+  character.model.scale.setScalar(CAT_SCALE);
   const furDetail = makeCatFurDetail();
   character.model.traverse((object) => {
     if (!object.isMesh) return;
@@ -1123,7 +1098,7 @@ async function loadCat() {
   );
   character.shadow.name = "CatGroundShadow";
   character.shadow.rotation.x = -Math.PI / 2;
-  character.shadow.scale.set(1.05, 0.82, 1);
+  character.shadow.scale.set(0.66, 0.52, 1);
   character.shadow.renderOrder = 1;
   scene.add(character.shadow);
 
@@ -1181,11 +1156,11 @@ function signedBoxDistance(x, z, box) {
 }
 
 function canOccupy(x, z, y = character.root.position.y) {
-  if (x < -14.35 || x > 14.35 || z < -12.35 || z > 13.25) return false;
+  if (x < WORLD_BOUNDS.minX || x > WORLD_BOUNDS.maxX || z < WORLD_BOUNDS.minZ || z > WORLD_BOUNDS.maxZ) return false;
   return !colliders.some((box) => {
     if (!circleHitsBox(x, z, character.radius, box)) return false;
     const clearsTop = y >= box.maxY - 0.055;
-    const clearsBottom = y + 1.08 <= box.minY + 0.03;
+    const clearsBottom = y + CAT_BODY_HEIGHT <= box.minY + 0.03;
     const walkableRiser = box.stepUp && state.grounded && box.maxY - y <= STEP_HEIGHT + 0.001;
     // A foot can leave a support before the collision capsule clears its edge.
     // Permit depenetrating motion rather than trapping the cat on that edge.
@@ -1247,11 +1222,11 @@ function updateVertical(delta) {
     // Sweep the body against undersides so jumping cannot phase through a loft.
     const ceiling = colliders.filter((box) => (
       circleHitsBox(position.x, position.z, character.radius, box)
-      && previousY + 1.08 <= box.minY + 0.01
-      && nextY + 1.08 >= box.minY
+      && previousY + CAT_BODY_HEIGHT <= box.minY + 0.01
+      && nextY + CAT_BODY_HEIGHT >= box.minY
     )).sort((a, b) => a.minY - b.minY)[0];
     if (ceiling) {
-      nextY = ceiling.minY - 1.08;
+      nextY = ceiling.minY - CAT_BODY_HEIGHT;
       character.verticalVelocity = 0;
     }
   }
@@ -1275,7 +1250,7 @@ function moveCharacter(delta) {
   const inputZ = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
   const hasInput = inputX !== 0 || inputZ !== 0;
   if (hasInput && eatingTarget) {
-    eatingTarget.group.scale.setScalar(1);
+    eatingTarget.group.scale.setScalar(FOOD_SCALE);
     eatingTarget = null;
     state.eatingTime = 0;
     if (state.forcedAction === "Bite") {
@@ -1356,7 +1331,7 @@ function updateFood(delta, speed) {
         if (food.cooldown === 0) {
           food.active = true;
           food.group.visible = true;
-          food.group.scale.setScalar(1);
+          food.group.scale.setScalar(FOOD_SCALE);
           food.consumed = 0;
         }
       }
@@ -1374,14 +1349,14 @@ function updateFood(delta, speed) {
   const wrongHeight = nearest && Math.abs(nearest.baseY - character.root.position.y) > 0.34;
   const movementRequested = MOVEMENT_KEYS.some((key) => keys.has(key));
   if (!nearest || nearestDistance > 0.88 || wrongHeight || speed > 0.7 || !state.grounded || movementRequested) {
-    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(1);
+    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(FOOD_SCALE);
     state.eatingTime = 0;
     eatingTarget = null;
     return;
   }
 
   if (eatingTarget !== nearest) {
-    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(1);
+    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(FOOD_SCALE);
     state.eatingTime = 0;
     eatingTarget = nearest;
   }
@@ -1593,14 +1568,14 @@ function restartRun() {
 
 function updateCamera(delta) {
   temp.cameraTarget.copy(character.root.position);
-  temp.cameraTarget.y += 0.70;
+  temp.cameraTarget.y += 0.44;
   temp.cameraTarget.addScaledVector(character.velocity, 0.08);
 
-  const distance = 4.2;
+  const distance = 3.35;
   const horizontal = Math.cos(state.pitch) * distance;
   temp.cameraDesired.set(
     temp.cameraTarget.x + Math.sin(state.yaw) * horizontal,
-    temp.cameraTarget.y + 0.30 + Math.sin(state.pitch) * distance,
+    temp.cameraTarget.y + 0.24 + Math.sin(state.pitch) * distance,
     temp.cameraTarget.z + Math.cos(state.yaw) * horizontal,
   );
 
@@ -1625,7 +1600,7 @@ function updateCatVisual(delta) {
   character.mixer.update(delta);
 
   const chonkWidth = 1 + THREE.MathUtils.smoothstep(state.chonk, 62, 100) * 0.07;
-  character.model.scale.set(1.34 * chonkWidth, 1.34, 1.34 * chonkWidth);
+  character.model.scale.set(CAT_SCALE * chonkWidth, CAT_SCALE, CAT_SCALE * chonkWidth);
 
   const support = findSupport(
     character.root.position.x,
@@ -1637,7 +1612,7 @@ function updateCatVisual(delta) {
   const airHeight = Math.max(0, character.root.position.y - supportY);
   const shadowSpread = 1 + Math.min(airHeight, 2.5) * 0.12;
   character.shadow.position.set(character.root.position.x, supportY + 0.012, character.root.position.z);
-  character.shadow.scale.set(1.05 * shadowSpread * chonkWidth, 0.82 * shadowSpread * chonkWidth, 1);
+  character.shadow.scale.set(0.66 * shadowSpread * chonkWidth, 0.52 * shadowSpread * chonkWidth, 1);
   character.shadow.material.opacity = 0.28 * (1 - Math.min(airHeight / 3.5, 0.72));
 }
 
@@ -1825,6 +1800,12 @@ window.__megaChonk = {
   },
   restart: restartRun,
   navigation: () => ({
+    bounds: WORLD_BOUNDS,
+    house: HOUSE,
+    catScale: CAT_SCALE,
+    bodyHeight: CAT_BODY_HEIGHT,
+    radius: character.radius,
+    generation: generatedCourse,
     level: state.level,
     transitioning: state.transitioning,
     gameComplete: state.gameComplete,
@@ -1885,6 +1866,9 @@ window.__megaChonk = {
     modelName: character.model?.name ?? null,
     animationClips: character.clipCount,
     skinnedMeshes: character.skinnedMeshCount,
+    catScale: CAT_SCALE,
+    house: HOUSE,
+    generatedObstacles: generatedCourse?.obstacles.length ?? 0,
     level: state.level,
     xp: state.xp,
     grounded: state.grounded,

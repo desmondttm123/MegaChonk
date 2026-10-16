@@ -1,6 +1,7 @@
 const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const path = require("path");
+const captureScreenshot = require("./capture-screenshot");
 
 (async () => {
   const root = path.resolve(__dirname, "..");
@@ -123,7 +124,7 @@ const path = require("path");
     });
     await page.waitForTimeout(5300);
     const groomed = await page.evaluate(() => window.__megaChonk.snapshot());
-    await page.screenshot({
+    await captureScreenshot(page, {
       path: path.join(root, "assets", "previews", "mega-chonk-gameplay.png"),
     });
     await page.keyboard.down("w");
@@ -133,7 +134,7 @@ const path = require("path");
     for (const level of [1, 2]) {
       await page.evaluate((index) => window.__megaChonk.loadLevel(index), level);
       await page.waitForTimeout(650);
-      await page.screenshot({
+      await captureScreenshot(page, {
         path: path.join(root, "assets", "previews", `mega-chonk-level-${level + 1}.png`),
       });
     }

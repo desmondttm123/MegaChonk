@@ -2,6 +2,7 @@ const { chromium } = require("playwright");
 const { createServer } = require("http");
 const fs = require("fs");
 const path = require("path");
+const captureScreenshot = require("./capture-screenshot");
 const { createHash } = require("crypto");
 
 const root = path.resolve(__dirname, "..");
@@ -55,6 +56,7 @@ const hash = (data) => createHash("sha256").update(data).digest("hex");
     for (const level of [0, 1, 2]) {
       const result = await page.evaluate((index) => { window.__megaChonk.loadLevel(index); return window.__megaChonk.snapshot(); }, level);
       if (result.foodsRemaining !== [3, 4, 5][level] || result.upstairsHeight !== 2.7) throw new Error(`Broken hosted level ${level + 1}`);
+      if (result.catScale !== 0.84 || result.house.width !== 46 || result.house.depth !== 42 || result.generatedObstacles < 25) throw new Error(`Stale house generation on hosted level ${level + 1}`);
       levels.push({ level: level + 1, meals: result.foodsRemaining, upstairs: result.upstairsHeight });
     }
     await page.evaluate(() => { window.__megaChonk.loadLevel(0); window.__megaChonk.state.yaw = 0; });
@@ -72,7 +74,7 @@ const hash = (data) => createHash("sha256").update(data).digest("hex");
     const airborne = await page.evaluate(() => window.__megaChonk.snapshot());
     if (airborne.grounded || airborne.position[1] < 0.1) throw new Error("Hosted jumping did not work");
     await page.waitForFunction(() => window.__megaChonk.state.grounded);
-    await page.screenshot({ path: path.join(root, "assets", "previews", remote ? "mega-chonk-hosted.png" : "mega-chonk-pages.png") });
+    await captureScreenshot(page, { path: path.join(root, "assets", "previews", remote ? "mega-chonk-hosted.png" : "mega-chonk-pages.png") });
     if (errors.length) throw new Error(errors.join("\n"));
     console.log(JSON.stringify({ url: target, revision: manifest.revision, files: Object.keys(manifest.files).length, modelSha256: actualHash, triangles: moved.triangles, levels, movement: true, jumping: true, errors }, null, 2));
     console.log("Pages deployment test passed");

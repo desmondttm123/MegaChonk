@@ -1,12 +1,12 @@
 const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const path = require("path");
+const captureScreenshot = require("./capture-screenshot");
 
 const PORT = 4174;
 const requestedSeed = Number(process.argv[2] ?? 424242);
 const RUN_SEED = Number.isFinite(requestedSeed) ? Math.abs(Math.trunc(requestedSeed)) : 424242;
 const GRID = 0.55;
-const BOUNDS = { minX: -13.65, maxX: 13.65, minZ: -11.75, maxZ: 12.7 };
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -27,6 +27,7 @@ function routeLength(start, route) {
 }
 
 function makeBlockedTest(navigation, target) {
+  const BOUNDS = navigation.bounds;
   const navigationHeight = target[1] > 2 && navigation.position[1] > 2 ? 2.7 : 0;
   const startingPlatform = navigation.grounded && navigation.position[1] > 0.2
     ? navigation.colliders.find((collider) => (
@@ -49,8 +50,8 @@ function makeBlockedTest(navigation, target) {
     for (const collider of navigation.colliders) {
       if (collider === targetPlatform || collider === startingPlatform) continue;
       // Plan on the destination floor, not the cat's transient jump height.
-      if (navigationHeight >= collider.maxY - 0.06 || navigationHeight + 1.08 <= collider.minY + 0.03) continue;
-      const clearance = 0.5;
+      if (navigationHeight >= collider.maxY - 0.06 || navigationHeight + navigation.bodyHeight <= collider.minY + 0.03) continue;
+      const clearance = navigation.radius + 0.18;
       if (
         x > collider.minX - clearance
         && x < collider.maxX + clearance
@@ -77,6 +78,7 @@ function makeBlockedTest(navigation, target) {
 }
 
 function planRoute(navigation, target) {
+  const BOUNDS = navigation.bounds;
   const columns = Math.floor((BOUNDS.maxX - BOUNDS.minX) / GRID) + 1;
   const rows = Math.floor((BOUNDS.maxZ - BOUNDS.minZ) / GRID) + 1;
   const toCell = ([x, , z]) => [
@@ -295,7 +297,7 @@ function planRoute(navigation, target) {
     await page.waitForFunction(() => window.__megaChonk.state.transitioning === false, null, { timeout: 5000 });
 
     const overallStart = Date.now();
-    while (Date.now() - overallStart < 300000) {
+    while (Date.now() - overallStart < 480000) {
       let nav = await navigation();
       if (nav.gameComplete) break;
       if (nav.transitioning) {
@@ -372,7 +374,7 @@ function planRoute(navigation, target) {
     const finalSnapshot = await page.evaluate(() => window.__megaChonk.snapshot());
     const finalNavigation = await navigation();
     const completionText = await page.locator("#completion-stats").textContent();
-    await page.screenshot({
+    await captureScreenshot(page, {
       path: path.join(root, "assets", "previews", RUN_SEED === 424242 ? "mega-chonk-complete.png" : `mega-chonk-complete-${RUN_SEED}.png`),
     });
 
@@ -382,11 +384,11 @@ function planRoute(navigation, target) {
     if (finalSnapshot.jumps < 3) browserErrors.push(`movement:expected platform jumps, got ${finalSnapshot.jumps}`);
     if (levelRuns.length !== 3) browserErrors.push(`progression:expected 3 level runs, got ${levelRuns.length}`);
     if (!completionText?.includes("12 meals")) browserErrors.push(`completion:stats were not rendered correctly: ${completionText}`);
-    console.log(JSON.stringify({ seed: RUN_SEED, levelRuns, finalSnapshot, finalNavigation, completionText }, null, 2));
+    console.log(JSON.stringify({ seed: RUN_SEED, levelRuns, finalSnapshot, completed: finalNavigation.gameComplete, completionText }, null, 2));
   } catch (error) {
     if (page) {
       await releaseMovement();
-      await page.screenshot({
+      await captureScreenshot(page, {
         path: path.join(root, "assets", "previews", `mega-chonk-autoplay-failure-${RUN_SEED}.png`),
       }).catch(() => {});
     }

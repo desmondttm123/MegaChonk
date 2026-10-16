@@ -1,6 +1,8 @@
 import bpy
 import math
 import os
+import time
+import uuid
 from mathutils import Matrix, Vector
 
 
@@ -196,8 +198,8 @@ def refine_anatomy(body):
         if point.y < -0.48:
             face_mask = 1 - smoothstep(-0.55, -0.48, point.y)
             for sign in (-1, 1):
-                socket = math.exp(-((point.x - sign * 0.060) / 0.030) ** 4 - ((point.z - 0.762) / 0.021) ** 4)
-                point.y += 0.008 * socket * face_mask
+                socket = math.exp(-((point.x - sign * 0.060) / 0.035) ** 4 - ((point.z - 0.762) / 0.027) ** 4)
+                point.y += 0.016 * socket * face_mask
             cheek = math.exp(-((abs(point.x) - 0.055) / 0.045) ** 2 - ((point.z - 0.710) / 0.029) ** 2)
             point.x += math.copysign(0.006 * cheek * face_mask, point.x)
             point.y -= 0.005 * cheek * face_mask
@@ -393,15 +395,17 @@ def build_almond_eye(side, sign, armature, material):
     columns, rows = 65, 25
     for column in range(columns):
         u = -1 + 2 * column / (columns - 1)
-        half_height = 0.0155 * max(0.0001, 1 - u * u) ** 0.68
+        half_height = 0.021 * max(0.0001, 1 - u * u) ** 0.68
         for row in range(rows):
             v = -1 + 2 * row / (rows - 1)
-            vertices.append((sign * (0.060 + u * 0.029), -0.560 + u * 0.020 - 0.009 * (1 - u * u) * (1 - v * v), 0.762 + u * 0.003 + v * half_height))
+            vertices.append((sign * (0.060 + u * 0.033), -0.560 + u * 0.020 - 0.009 * (1 - u * u) * (1 - v * v), 0.762 + u * 0.003 + v * half_height))
             radial = math.sqrt((u * 1.05) ** 2 + (v * 0.80) ** 2)
             streak = 0.5 + 0.5 * math.sin(math.atan2(v, u) * 71 + radial * 19)
             iris = Vector((0.24, 0.115, 0.024)).lerp(Vector((0.48, 0.31, 0.085)), streak * 0.55)
             iris *= 0.62 + 0.38 * (1 - smoothstep(0.65, 1.0, radial))
-            pupil_mask = 1 - smoothstep(0.92, 1.08, (u / 0.115) ** 2 + (v / 0.89) ** 2)
+            # A dilated circular pupil, clipped naturally by the almond aperture.
+            pupil_radius = math.hypot(u * 0.033, v * half_height)
+            pupil_mask = 1 - smoothstep(0.027, 0.029, pupil_radius)
             iris = iris.lerp(Vector((0.0015, 0.002, 0.001)), pupil_mask)
             colors.append((*iris, 1))
             if column and row:
@@ -434,8 +438,8 @@ def build_face(armature, materials):
             points = []
             for step in range(13):
                 u = -1 + step / 6
-                height = 0.0155 * max(0, 1 - u * u) ** 0.68
-                points.append((sign * (0.060 + u * 0.029), -0.561 + u * 0.020, 0.762 + u * 0.003 + height * (1 if upper else -1)))
+                height = 0.021 * max(0, 1 - u * u) ** 0.68
+                points.append((sign * (0.060 + u * 0.033), -0.561 + u * 0.020, 0.762 + u * 0.003 + height * (1 if upper else -1)))
             details.append(add_curve_detail(f"Eyelid{'Upper' if upper else 'Lower'}.{side}", points, mouth, armature, f"Eyelid.{side}", 0.0011 if upper else 0.00065))
 
     nose = add_uv_detail("Nose", (0, -0.634, 0.716), (0.017, 0.005, 0.009), pink, armature)
@@ -795,8 +799,24 @@ def render_previews(armature, actions, camera):
         bpy.context.scene.frame_set(frame)
         camera.location = camera_location
         look_at(camera, target)
-        bpy.context.scene.render.filepath = os.path.join(PREVIEW_DIR, filename)
-        bpy.ops.render.render(write_still=True)
+        destination = os.path.join(PREVIEW_DIR, filename)
+        temporary = os.path.join(PREVIEW_DIR, f"render-{uuid.uuid4().hex}.png")
+        # Windows preview/indexing tools can briefly lock an existing PNG.
+        bpy.context.scene.render.filepath = temporary
+        try:
+            bpy.ops.render.render(write_still=True)
+            for attempt in range(20):
+                try:
+                    os.replace(temporary, destination)
+                    break
+                except OSError:
+                    if attempt == 19:
+                        raise
+                    time.sleep(0.25)
+        finally:
+            bpy.context.scene.render.filepath = destination
+            if os.path.exists(temporary):
+                os.remove(temporary)
     armature.animation_data.action = None
     bpy.context.scene.frame_set(1)
 

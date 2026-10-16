@@ -9,7 +9,7 @@ Verified locally on 2026-10-16 with Blender 3.4.1 and headless Microsoft Edge at
 - Clips: Idle, Walk, Groom, Jump, Sit, Claw, Bite.
 - GLB re-imported successfully into a clean Blender scene.
 - Four skin influences per vertex; Blender previews and runtime use the same weights.
-- Forelegs have higher elbows, scapula bones, localized weight smoothing, reduced swing lift, and toe articulation. The eyes use curved almond surfaces with radial iris colors, inset sockets, and eyelid bones; the muzzle has a rounded nose and tapered whiskers.
+- Forelegs have higher elbows, scapula bones, localized weight smoothing, reduced swing lift, and toe articulation. The enlarged eyes use curved almond surfaces, round dilated night pupils, thin amber iris edges, deeper sockets, and eyelid bones; the muzzle has a rounded nose and tapered whiskers.
 - The base mesh is credited to Jonas Dichelle under CC BY 3.0 in the bundled attribution.
 
 ## Browser Checks
@@ -20,6 +20,8 @@ Verified locally on 2026-10-16 with Blender 3.4.1 and headless Microsoft Edge at
 
 The idle blink was also verified in the browser: both eyelid bones contracted to approximately 0.106 of their open height, with a separate inspection screenshot.
 
+Both exported eyes have approximately 79% near-black color vertices and an aperture height of 0.0423 model units, versus the previous approximately 0.031 height. The Blender close-up was reviewed after deepening the sockets to remove lower-eye surface clipping.
+
 The same inspection measured a median 59.9 FPS and a 95th-percentile frame interval of 16.8 ms over 120 frames. These are local measurements, not a performance guarantee on other hardware.
 
 ## Autoplay
@@ -27,13 +29,26 @@ The same inspection measured a median 59.9 FPS and a 95th-percentile frame inter
 `tools/autoplay-test.js 424242` completed all three rooms using keyboard movement and jumping:
 
 - 12 meals consumed.
-- 7 jumps.
+- 8 jumps.
 - 600 XP and the completion screen reached.
-- Zero bumps, no unreachable objectives or browser errors, and a completion time of 2 minutes 48 seconds.
+- Zero bumps, no unreachable objectives or browser errors, and a completion time of 2 minutes 34 seconds.
 
-Autoplay included every required upstairs meal in the updated house and traversed stairs with keyboard input, without teleporting to objectives. Its route planner uses the destination floor rather than transient jump height. A final grooming-only paw-to-muzzle alignment was regenerated after this replay and checked with the smoke and visual tests; gameplay physics were unchanged.
+Autoplay included every required upstairs meal in the enlarged house and traversed stairs with keyboard input, without teleporting to objectives. Its route planner reads the current world bounds and cat capsule dimensions and uses the destination floor rather than transient jump height. The final eye-socket adjustment changes only the facial geometry; the final exported model was rechecked with the visual and Pages tests.
 
-The run exposed and helped fix a capsule collision trap when leaving an ottoman and a shelf placement that crowded the kitchen supper bowl.
+The earlier capsule-depenetration fix remains in place so walking off an ottoman does not trap the cat at its edge.
+
+A second complete keyboard autoplay on seed `765432`, using the final model export, also passed: 12 meals, 600 XP, seven jumps, zero bumps, and 2 minutes 33 seconds. Neither run teleported to objectives.
+
+## Scale And Generation
+
+- Floor footprint increased from 34 x 29 to 46 x 42 units, a 96% area increase.
+- Cat model scale reduced from 1.34 to 0.84; collision radius is 0.24 and body capsule height is 0.76. Camera framing, bowl size, and ground shadow were adjusted accordingly.
+- Hurdles, spills with moving bridges, rotating vacuums, and mixed cushions/stools/boxes are generated from the run seed, rather than individually positioned per room.
+- `tools/generation-test.js` passed 90 layouts (30 seeds x three rooms), including exact same-seed reproducibility, all expected obstacle types/counts, no overlapping generated footprints, and clear protected corridors.
+- Independent routes were found through the final collision geometry and full hazard envelopes to each lower objective, staircase entry, and exit. The upstairs structure and optional catnip leap remain authored and protected.
+- Generated obstacle counts were 25, 30, and 37 in the tested rooms. Difficulty increases obstacle density and hurdle heights.
+- A generated moving footstool carried the cat through 30 browser samples without slipping, dropping it, or losing ground contact.
+- The runtime-only `/MegaChonk/` build passed model-hash, level, WASD, jumping, attribution, and browser-error checks. It contains 25 files totaling approximately 12.45 MB.
 
 ## Vertical Challenges
 
@@ -53,4 +68,4 @@ The isolated vertical tests place the cat at scenario starting points, but do no
 
 ## Visual Scope
 
-The cat has improved anatomy, restrained Turkish Van markings, smaller inset eyes, a shaped nose, articulated tail, subtle fur surface detail, interpolated motion, and planted foot targets. The house remains the existing stylized environment. This is not a production-quality match for Stray; no Stray assets were used.
+The cat has improved anatomy, restrained Turkish Van markings, larger dark night eyes, a shaped nose, articulated tail, subtle fur surface detail, interpolated motion, and planted foot targets. The enlarged house remains stylized. This is not a production-quality match for Stray; no Stray assets were used.

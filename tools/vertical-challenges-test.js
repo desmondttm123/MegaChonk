@@ -1,6 +1,7 @@
 const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const path = require("path");
+const captureScreenshot = require("./capture-screenshot");
 
 const root = path.resolve(__dirname, "..");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -77,7 +78,7 @@ const results = [];
       const top = await walkTo(route.stairs.top);
       if (top.position[1] < 2.65 || !top.grounded || top.jumpImpulse <= 0) errors.push(`Level ${level + 1}: invalid stair ascent`);
       if (top.position[1] > 2.8) errors.push(`Level ${level + 1}: stair height invalid`);
-      await page.screenshot({ path: path.join(root, "assets", "previews", `mega-chonk-upstairs-${level + 1}.png`) });
+      await captureScreenshot(page, { path: path.join(root, "assets", "previews", `mega-chonk-upstairs-${level + 1}.png`) });
       const bottom = await walkTo(route.stairs.entry);
       const navAfter = await page.evaluate(() => window.__megaChonk.navigation());
       if (navAfter.jumps !== nav.jumps || bottom.position[1] > 0.2) errors.push(`Level ${level + 1}: invalid stair descent`);
@@ -129,7 +130,7 @@ const results = [];
     await page.waitForFunction(() => window.__megaChonk.state.grounded, null, { timeout: 3000 });
     const landing = await snapshot();
     if (landing.position[1] < 2.65 || Math.abs(landing.position[0] - 4.5) > 0.5 || landing.position[2] < -4 || landing.position[2] > -1.8) errors.push(`Missed boosted perch: ${JSON.stringify(landing)}`);
-    await page.screenshot({ path: path.join(root, "assets", "previews", "mega-chonk-catnip-leap.png") });
+    await captureScreenshot(page, { path: path.join(root, "assets", "previews", "mega-chonk-catnip-leap.png") });
     await sleep(2000);
     const shelfLandings = [];
     for (const target of [[8.7, 1.95, 0.1], [8.7, 1.2, 2.7], [8.3, 0.55, 4.8]]) shelfLandings.push(await leapTo(target));
@@ -145,7 +146,8 @@ const results = [];
     await page.keyboard.press("Space");
     let highest = 0;
     for (let i = 0; i < 24; i += 1) { highest = Math.max(highest, (await snapshot()).position[1]); await sleep(40); }
-    if (highest > 1.4 || (await snapshot()).position[1] > 0.1) errors.push(`Jump passed through gallery underside: ${highest}`);
+    const bodyHeight = await page.evaluate(() => window.__megaChonk.navigation().bodyHeight);
+    if (highest > 2.46 - bodyHeight + 0.03 || (await snapshot()).position[1] > 0.1) errors.push(`Jump passed through gallery underside: ${highest}`);
     console.log(JSON.stringify({ results, limitedStairs: limitedStairs.position, normal, unboostedLanding, boosted, landing, shelfLandings, undersideMaxHeight: highest, errors }, null, 2));
     if (errors.length) throw new Error(errors.join("\n"));
     console.log("Vertical challenges passed");

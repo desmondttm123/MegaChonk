@@ -1,6 +1,7 @@
 const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const path = require("path");
+const captureScreenshot = require("./capture-screenshot");
 
 const root = path.resolve(__dirname, "..");
 const preview = (name) => path.join(root, "assets", "previews", `cat-inspection-${name}.png`);
@@ -57,9 +58,28 @@ const preview = (name) => path.join(root, "assets", "previews", `cat-inspection-
 
     for (const [name, yaw] of [["rear", 0], ["side", Math.PI / 2], ["front", Math.PI], ["three-quarter", 2.3]]) {
       await pose("Idle", 0.35, yaw);
-      await page.screenshot({ path: preview(name) });
+      await captureScreenshot(page, { path: preview(name) });
     }
     await pose("Idle", 113 / 239, Math.PI);
+    const nightEyes = await page.evaluate(() => {
+      const result = [];
+      window.__megaChonk.character.model.traverse((mesh) => {
+        if (!/^Eye[._]?[LR]$/.test(mesh.name)) return;
+        const colors = mesh.geometry.attributes.color;
+        const positions = mesh.geometry.attributes.position;
+        let dark = 0;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (let index = 0; index < colors.count; index += 1) {
+          if (Math.max(colors.getX(index), colors.getY(index), colors.getZ(index)) < 0.015) dark += 1;
+          minY = Math.min(minY, positions.getY(index));
+          maxY = Math.max(maxY, positions.getY(index));
+        }
+        result.push({ name: mesh.name, darkFraction: dark / colors.count, apertureHeight: maxY - minY });
+      });
+      return result;
+    });
+    if (nightEyes.length !== 2 || nightEyes.some((eye) => eye.darkFraction < 0.65 || eye.apertureHeight < 0.040)) errors.push(`Night eye regression: ${JSON.stringify(nightEyes)}`);
     const eyelids = await page.evaluate(() => {
       const result = [];
       window.__megaChonk.character.model.traverse((object) => {
@@ -68,7 +88,7 @@ const preview = (name) => path.join(root, "assets", "previews", `cat-inspection-
       return result;
     });
     if (eyelids.length !== 2 || eyelids.some((bone) => Math.min(...bone.scale) > 0.15)) errors.push(`Missing skeletal blink: ${JSON.stringify(eyelids)}`);
-    await page.screenshot({ path: preview("blink") });
+    await captureScreenshot(page, { path: preview("blink") });
     const contacts = [];
     for (const name of ["Idle", "Walk", "Sit", "Groom"]) {
       const fractions = name === "Sit" ? [0, 0.25, 0.60, 0.95] : [0.05, 0.25, 0.5, 0.75, 0.95];
@@ -79,7 +99,7 @@ const preview = (name) => path.join(root, "assets", "previews", `cat-inspection-
         if (bounds.minimum < -0.02) errors.push(`${name} at ${fraction}: mesh sinks below floor by ${(-bounds.minimum).toFixed(3)} units`);
         if (bounds.maximum > 2.4 || !Number.isFinite(bounds.maximum)) errors.push(`${name}: invalid body bounds ${JSON.stringify(bounds)}`);
       }
-      await page.screenshot({ path: preview(name.toLowerCase()) });
+      await captureScreenshot(page, { path: preview(name.toLowerCase()) });
     }
     await pose("Walk", 0.1, 0);
     await page.evaluate(() => { window.__megaChonk.character.actions.Walk.paused = false; });
@@ -97,7 +117,7 @@ const preview = (name) => path.join(root, "assets", "previews", `cat-inspection-
       }
       requestAnimationFrame(sample);
     }));
-    console.log(JSON.stringify({ snapshot: await page.evaluate(() => window.__megaChonk.snapshot()), eyelids, contacts, performance, errors }, null, 2));
+    console.log(JSON.stringify({ snapshot: await page.evaluate(() => window.__megaChonk.snapshot()), nightEyes, eyelids, contacts, performance, errors }, null, 2));
     if (errors.length) throw new Error(errors.join("\n"));
     console.log("Visual cat inspection passed");
   } finally {
