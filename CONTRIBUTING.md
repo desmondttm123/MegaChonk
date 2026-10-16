@@ -72,6 +72,11 @@ when reporting a generated-layout failure.
 
 ## Character Work
 
+Artists: read the [artist cat guide](docs/artist-cat-guide.md) first. It explains
+rig-preserving improvements, full replacements, manual-source ownership, texture
+integration, animation/export settings, and what to deliver. Do not regenerate
+over an artist's hand-edited source.
+
 The active pipeline is `tools/generate_stray_style_cat.py`, not the archived v2/v3
 generators. Run it separately from any interactive Blender scene:
 

@@ -38,7 +38,8 @@ agents and human contributors, not a running service or autonomous background jo
 
 - Preserve unrelated changes, experimental assets, licenses, and source files. Never clean the worktree by deleting or reverting someone else's work.
 - Keep runtime URLs relative so GitHub Pages works under `/MegaChonk/`. Do not add a bundler, backend, Unity dependency, or package-manager migration without a reason tied to the requested work.
-- Change procedural generators as well as their generated assets when modifying the cat. Keep GLB, Blender source, and inspection previews in sync.
+- For procedural cat changes, update the generator as well as its outputs. Keep GLB, Blender source, and inspection previews in sync.
+- For manual artist work, follow [the artist guide](docs/artist-cat-guide.md): preserve the edited `.blend`, agree an authoritative source/export workflow, and document any accepted pipeline switch. Do not run the from-scratch generator over hand-edited assets; approved manual work can use its own repeatable export workflow instead.
 - Run Blender in a separate background process with factory startup. Never read, change, or overwrite the user's currently open scene.
 - Keep the Jonas Dichelle CC BY 3.0 attribution and Three.js license in the repo and deployment. The sitting printable cat is a separate asset, not the runtime rig.
 - Keep vertex colors on the POINT domain in the Blender 3.4 cat exporter; earlier CORNER-domain exports scrambled coat colors.

@@ -26,6 +26,8 @@ For local development, keep the server running; opening `index.html` directly wi
 
 Read [AGENTS.md](AGENTS.md) for repository instructions, [MEMORY.md](MEMORY.md) for the current state and where work stopped, and [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and release steps. Contributors should update the memory after meaningful changes so the next person or coding agent can continue without the original chat.
 
+Artists can improve the playable cat in Blender. Start with the [artist cat guide](docs/artist-cat-guide.md), covering the active source file, sculpting/rigging, materials, all seven animations, GLB export, and the review handoff. A beauty render alone does not replace the in-game character.
+
 ## Deployment
 
 The [Deploy Mega Chonk workflow](https://github.com/desmondttm123/MegaChonk/actions/workflows/pages.yml) deploys pushes to `main` automatically using GitHub Pages. It can also be started manually from the Actions tab. Pages must use **GitHub Actions** as its deployment source in the repository settings.

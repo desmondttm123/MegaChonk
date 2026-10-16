@@ -1,5 +1,10 @@
 # Turkish Van Cat Asset Brief
 
+This is the original design brief, not the current export contract. Artists
+should follow the [current artist guide](artist-cat-guide.md) for active files,
+the existing rig/actions, material limitations, and game-ready delivery. In
+particular, the early triangle targets and clip names below are historical.
+
 ## Goal
 
 Create a high-resolution hero cat for a browser game, then ship an optimized runtime version without losing the silhouette or coat identity.

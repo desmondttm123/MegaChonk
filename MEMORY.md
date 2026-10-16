@@ -1,7 +1,7 @@
 # Mega Chonk Project Memory
 
 Last updated: 2026-10-16 (Asia/Singapore).
-Baseline inspected for this documentation-only handoff: `ef96e40` on `main`.
+Baseline inspected for the latest artist-documentation update: `ee37670` on `main`.
 Read current Git history before relying on that baseline; this file is not a live
 deployment status feed.
 
@@ -9,8 +9,9 @@ deployment status feed.
 
 - The latest gameplay request was to fix violent camera movement from slight mouse input. The fix is committed as `cecfb02`, deployed, and was checked with the live camera and Pages tests in the preceding work session.
 - A subsequent check-in, `ef96e40`, added previously local model experiments and inspection assets. It did not replace the active runtime cat or change gameplay code.
-- This handoff adds `AGENTS.md`, this memory, contributor instructions, and README links so another contributor can continue without the chat.
-- Handoff-only checks: source paths, active model, test ports, recent Git history, 14 local Markdown links, ASCII content, and diff whitespace were inspected. Gameplay tests were not rerun for these documentation changes. The handoff files were written locally; no commit, push, or deployment was performed for this request.
+- Contributor handoff files were checked in as `ee37670` ("Added Agents and memory").
+- Latest completed request: add instructions so artists can improve/render a better cat. `docs/artist-cat-guide.md` now covers the active source, rig-preserving work versus replacements, materials/fur, seven actions, candidate GLB export, validation, licensing, and delivery/source ownership.
+- The active `.blend` was inspected read-only in a separate background Blender process to verify names, dimensions, axes, actions, and muted NLA-track setup. All 22 local Markdown links across the six affected documents passed validation, along with whitespace checks. No model, animation, or runtime file was changed. Gameplay tests were not rerun for this documentation-only task; no commit/push/deployment was performed for it.
 - There is no unfinished implementation currently in progress. Wait for the next requested improvement; multiplayer and extra coat variants are deferred, not approved next tasks.
 - Automated mouse tests passed, but the user has not yet reported how the latest fix feels on their own mouse/browser.
 
@@ -48,6 +49,8 @@ fully random building generator. Floors and collision bounds are world-space.
 ## Canonical Assets And Pitfalls
 
 - Edit `tools/generate_stray_style_cat.py` to regenerate the active `assets/models/turkish-van-game-cat.blend` and `.glb`, plus `assets/models/game-cat-previews/`.
+- Artist instructions: [artist cat guide](docs/artist-cat-guide.md). The from-scratch generator overwrites canonical files and does not read a manually edited `.blend`. Keep artist candidates separate; an accepted manual workflow must explicitly preserve an authoritative source and repeatable export recipe/tool rather than regenerating from the old FBX. No pipeline switch has been made yet.
+- Runtime `loadCat()` replaces `TurkishVan.Fur` with vertex-color/procedural-bump shading. Texture-based upgrades need a coordinated material-loader and test update; a better Blender material/render alone will not carry through unchanged.
 - Blender 3.4 runs in background mode with `--factory-startup`; it must not touch the user's open Blender scene.
 - The active base mesh is Jonas Dichelle's CC BY 3.0 cat at `assets/models/source/jonas-dichelle-cat/cat.fbx`. Preserve source attribution and `credits.html`; no Stray assets are included.
 - POINT-domain coat/iris vertex colors avoid the Blender 3.4 CORNER export bug. Keep normalized skin weights and verify all seven clips after export/re-import.
@@ -65,6 +68,7 @@ fully random building generator. Floors and collision bounds are world-space.
 | `f5dc901` | Nearly doubled floor area; cat 37% smaller; protected seeded courses; larger dark night eyes |
 | `cecfb02` | Mouse-spike filtering, frame-based smoothing/rate limits, capture/focus guards, camera collision recovery |
 | `ef96e40` | Check-in of older experimental assets/tools; active gameplay remains the above version |
+| `ee37670` | Repository contributor instructions, persistent memory, setup/test/release handoff |
 
 Mouse regression details: old code directly applied every `movementX/Y` event;
 an oversized sample rotated yaw by -28.2 radians. A small furniture-corner orbit
