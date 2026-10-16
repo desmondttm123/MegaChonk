@@ -29,6 +29,7 @@ jobs:
         run: |
           node --input-type=module --check < game.js
           node --input-type=module --check < course-generator.js
+          node --input-type=module --check < camera-controls.js
       - name: Build runtime-only site
         run: python3 tools/build_pages.py
       - name: Configure GitHub Pages

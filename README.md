@@ -42,6 +42,8 @@ The build preserves relative URLs so modules and models work under `/MegaChonk/`
 - Click: recapture camera
 - `Esc`: release pointer lock
 
+Mouse look uses filtered relative input, frame-independent smoothing, and bounded turn speed. Cursor-warp samples on capture/focus changes are discarded; leaving the game window clears queued motion. The camera eases outward after clearing furniture rather than snapping to full follow distance.
+
 ## Core Loop
 
 Find every bowl in a room, then reach the glowing pet door. Complete Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run to finish a run.
@@ -92,6 +94,8 @@ This runs in a separate process and does not alter an open Blender scene.
 `tools/visual-cat-test.js` captures four viewing angles and several animation poses, checks night-pupil colors and eye aperture size, samples deformed geometry for floor penetration, and reports frame timing.
 
 `tools/generation-test.js` checks 90 seeded layouts across all three rooms for reproducibility, obstacle counts, overlapping obstacles, protected corridors, and routes through the actual collision/hazard geometry to every ground-floor objective and the stairs.
+
+`tools/camera-controls-test.js [URL]` checks small/native mouse movements, invalid deltas, event bursts, focus recovery, repeated pointer-lock capture/release, 30/60/144 FPS input consistency, and camera recovery at a furniture corner. Omit the URL for the local game or pass the live URL to verify deployment.
 
 `tools/vertical-challenges-test.js` walks up and down stairs in all three rooms, compares normal and catnip-assisted long jumps, checks boost expiry and hunger/weight limits, and tests the gallery underside collision.
 

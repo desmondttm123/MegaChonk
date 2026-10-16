@@ -6,6 +6,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { footprint, generateCourse } from "./course-generator.js";
+import { MouseLookController } from "./camera-controls.js";
 
 const CAT_SCALE = 0.84;
 const CAT_BODY_HEIGHT = 0.76;
@@ -64,6 +65,8 @@ composer.addPass(new OutputPass());
 
 const clock = new THREE.Clock();
 const keys = new Set();
+const mouseLook = new MouseLookController();
+const cameraRig = { distance: null, desiredDistance: 3.35, obstructed: false };
 const colliders = [];
 const surfaces = [];
 const cameraOccluders = [];
@@ -1586,10 +1589,14 @@ function updateCamera(delta) {
   raycaster.set(temp.cameraTarget, temp.rayDirection);
   raycaster.far = desiredDistance;
   const hits = raycaster.intersectObjects(cameraOccluders, false);
-  if (hits.length) {
-    const safeDistance = Math.max(1.25, hits[0].distance - 0.24);
-    temp.cameraDesired.copy(temp.cameraTarget).addScaledVector(temp.rayDirection, safeDistance);
-  }
+  const safeDistance = hits.length ? Math.min(desiredDistance, Math.max(0.35, hits[0].distance - 0.24)) : desiredDistance;
+  cameraRig.desiredDistance = safeDistance;
+  cameraRig.obstructed = hits.length > 0;
+  const currentDistance = cameraRig.distance ?? safeDistance;
+  // Pull in promptly at walls, but ease back out when a corner clears the ray.
+  const response = safeDistance < currentDistance ? 18 : 3.5;
+  cameraRig.distance = THREE.MathUtils.damp(currentDistance, safeDistance, response, delta);
+  temp.cameraDesired.copy(temp.cameraTarget).addScaledVector(temp.rayDirection, cameraRig.distance);
 
   camera.position.lerp(temp.cameraDesired, 1 - Math.exp(-9.5 * delta));
   camera.lookAt(temp.cameraTarget);
@@ -1686,6 +1693,9 @@ function updateToast(delta) {
 function animate() {
   const delta = Math.min(clock.getDelta(), 0.033);
   const elapsed = clock.elapsedTime;
+  const look = mouseLook.consume(delta);
+  state.yaw += look.yaw;
+  state.pitch = THREE.MathUtils.clamp(state.pitch + look.pitch, 0.08, 0.62);
   let speed = 0;
   updateMovingPlatforms(elapsed);
   if (state.started) {
@@ -1716,16 +1726,25 @@ function setupInput() {
     if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(event.code)) event.preventDefault();
   });
   addEventListener("keyup", (event) => keys.delete(event.code));
-  addEventListener("blur", () => keys.clear());
+  addEventListener("blur", () => {
+    keys.clear();
+    mouseLook.setLocked(false);
+  });
+  const syncMouseLook = () => mouseLook.setLocked(document.pointerLockElement === canvas && document.hasFocus() && !document.hidden);
+  addEventListener("focus", syncMouseLook);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) keys.clear();
+    syncMouseLook();
+  });
 
   document.addEventListener("pointerlockchange", () => {
     state.pointerLocked = document.pointerLockElement === canvas;
+    syncMouseLook();
     if (state.started) ui.prompt.textContent = state.pointerLocked ? "" : "CLICK TO RESUME CAMERA";
   });
   document.addEventListener("mousemove", (event) => {
-    if (!state.pointerLocked) return;
-    state.yaw -= event.movementX * 0.00235;
-    state.pitch = THREE.MathUtils.clamp(state.pitch + event.movementY * 0.00175, 0.08, 0.62);
+    if (!state.started || !state.pointerLocked) return;
+    mouseLook.addMovement(event.movementX, event.movementY);
   });
   canvas.addEventListener("click", () => {
     if (state.started && document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
@@ -1773,6 +1792,17 @@ addEventListener("resize", resize);
 window.__megaChonk = {
   state,
   character,
+  cameraSnapshot: () => ({
+    position: camera.position.toArray(),
+    target: temp.cameraTarget.toArray(),
+    quaternion: camera.quaternion.toArray(),
+    yaw: state.yaw,
+    pitch: state.pitch,
+    distance: cameraRig.distance,
+    desiredDistance: cameraRig.desiredDistance,
+    obstructed: cameraRig.obstructed,
+    rejectedMouseSamples: mouseLook.rejectedSamples,
+  }),
   start: () => ui.enter.click(),
   aimAt: (x, z) => {
     const dx = x - character.root.position.x;
