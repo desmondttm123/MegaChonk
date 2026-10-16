@@ -1,0 +1,12 @@
+Standing cat source geometry
+============================
+
+Source: Innerscene 3D Parts Library
+Asset: Standing cat / cat-original.glb
+URL: https://www.innerscene.com/tools/library/3d-parts/standing-cat-cda42538
+License: Creative Commons Zero v1.0 Universal (CC0 1.0)
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+The Mega Chonk game version reshapes, recolors, rigs, weights, and animates this
+continuous standing-cat mesh in Blender. The source asset contains no rig or
+animation.

@@ -1,0 +1,41 @@
+{
+  "source": "assets/models/source/jonas-dichelle-cat/cat.fbx",
+  "bounds": {
+    "minimum": [
+      -1.4244790077209473,
+      -4.873373508453369,
+      -2.880086660385132
+    ],
+    "maximum": [
+      1.4244790077209473,
+      4.33657693862915,
+      6.400655746459961
+    ],
+    "size": [
+      2.8489580154418945,
+      9.20995044708252,
+      9.280742645263672
+    ]
+  },
+  "meshes": [
+    {
+      "name": "Cat",
+      "vertices": 22650,
+      "polygons": 22648,
+      "triangles": 45296,
+      "materials": [
+        "skin",
+        "hair",
+        "Material.002"
+      ],
+      "vertex_groups": [],
+      "modifiers": []
+    }
+  ],
+  "armatures": [],
+  "actions": [],
+  "scene_frame_range": [
+    1,
+    250
+  ]
+}
