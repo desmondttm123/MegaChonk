@@ -7,7 +7,7 @@
 3. Eat to restore satiety, gain chonk, and earn XP.
 4. Keep hunger and weight in a useful middle band so the cat can move and leap effectively.
 5. Reach the glowing pet door after every required bowl is empty; bonus snacks are optional.
-6. Clear the living room, kitchen, and attic to complete the house run.
+6. Clear the living room, kitchen, and attic, then defeat the giant vacuum to complete the house run.
 
 ## Condition Model
 
@@ -46,6 +46,18 @@ A marked opening on the gallery faces a cushioned bonus perch across a `3.8`-uni
 - `Esc`: release the mouse
 - Phones: left analog joystick to move, right-side drag to look, Jump/Sit/Claw/Bite buttons, and a Trot toggle. No pointer lock is required; portrait and landscape are supported.
 
+## Combat And Bonus Items
+
+Every room introduces a collar and pendant plus optional clockwork-mouse enemies.
+Collars add tiered pace and persist through deaths; pendants strengthen claws and
+reduce hunger drain but are lost on combat death. Enemies telegraph a pounce and
+drop food or a pendant when defeated. See [adventure system](adventure-system.md).
+
+After the third pet door, the vacuum boss cycles through turning, an amber
+warning, a red suction cone, and cooling. Only claws against its rear filter
+deal damage. Nine suction losses exhaust the fight attempt; retry resets boss
+health and lives without replaying the three rooms. Accessories are optional.
+
 ## Character
 
 The runtime character is a Turkish Van with approximately 193,000 triangles, rendered as a skinned GLB in Three.js. The Blender pipeline uses a CC BY 3.0 base mesh by Jonas Dichelle and adds an anatomical skeleton, corrected skin weights, facial details, white/chestnut coat colors, and seven new animation clips. See the source attribution in `assets/models/source/jonas-dichelle-cat/ATTRIBUTION.md`.
@@ -56,6 +68,7 @@ Walking uses continuous foot targets with shoulder/spine motion. Sitting keeps t
 
 - `tools/smoke-test.js` validates skinned mesh loading, coat colors, controls, action states, grooming interruption, condition limits, generated systems, and screenshots.
 - `tools/visual-cat-test.js` captures front, rear, side, and three-quarter views, samples animated ground contact, and measures frame timing.
-- `tools/autoplay-test.js [seed]` uses keyboard movement and jumping to eat all 12 meals and cross all three pet doors.
+- `tools/autoplay-test.js [seed]` uses keyboard movement and jumping to eat all 12 meals, cross all three pet doors, and defeat the vacuum.
+- `tools/adventure-rules-test.js` checks equipment ownership, boss attack/weak-point policies, lives/retry, and shared jump rules; `tools/adventure-test.js` checks loot/death scenarios, real hurdle clearance, boss integration, and control-driven wins with and without equipment.
 - `tools/vertical-challenges-test.js` checks stair ascent/descent, the catnip jump gap, optional objectives, boost limits/expiry, and underside collision.
 - Release testing includes the regression seed that previously allowed clutter to obstruct a bowl.

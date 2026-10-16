@@ -2,6 +2,7 @@ const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const path = require("path");
 const captureScreenshot = require("./capture-screenshot");
+const defeatVacuum = require("./boss-driver");
 
 const PORT = 4174;
 const requestedSeed = Number(process.argv[2] ?? 424242);
@@ -300,6 +301,12 @@ function planRoute(navigation, target) {
     while (Date.now() - overallStart < 480000) {
       let nav = await navigation();
       if (nav.gameComplete) break;
+      if (nav.stage === "boss") {
+        const result = await defeatVacuum(page);
+        console.log(`[autoplay] Vacuum defeated: ${JSON.stringify(result)}`);
+        await page.waitForFunction(() => window.__megaChonk.state.gameComplete, null, { timeout: 6000 });
+        break;
+      }
       if (nav.transitioning) {
         await releaseMovement();
         await page.waitForFunction(() => !window.__megaChonk.state.transitioning || window.__megaChonk.state.gameComplete, null, { timeout: 6000 });
@@ -358,7 +365,7 @@ function planRoute(navigation, target) {
       if (!gateResult.reached) throw new Error(`Could not reach the gate on level ${level + 1}: ${JSON.stringify(gateResult.navigation)}`);
       await releaseMovement();
       await page.waitForFunction(
-        (previousLevel) => window.__megaChonk.state.gameComplete || window.__megaChonk.state.level !== previousLevel,
+        (previousLevel) => window.__megaChonk.state.gameComplete || window.__megaChonk.state.stage === "boss" || window.__megaChonk.state.level !== previousLevel,
         level,
         { timeout: 7000 },
       );
@@ -381,6 +388,7 @@ function planRoute(navigation, target) {
     if (finalSnapshot.eaten !== 12) browserErrors.push(`progression:expected 12 meals, got ${finalSnapshot.eaten}`);
     if (finalSnapshot.level !== 2) browserErrors.push(`progression:expected final level index 2, got ${finalSnapshot.level}`);
     if (finalSnapshot.xp < 600) browserErrors.push(`progression:expected at least 600 XP, got ${finalSnapshot.xp}`);
+    if (!finalSnapshot.adventure.bossDefeated) browserErrors.push("progression:vacuum boss was not defeated");
     if (finalSnapshot.jumps < 3) browserErrors.push(`movement:expected platform jumps, got ${finalSnapshot.jumps}`);
     if (levelRuns.length !== 3) browserErrors.push(`progression:expected 3 level runs, got ${levelRuns.length}`);
     if (!completionText?.includes("12 meals")) browserErrors.push(`completion:stats were not rendered correctly: ${completionText}`);

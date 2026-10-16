@@ -100,7 +100,8 @@ kbd { font: inherit; }
 .input-hint { position: relative; max-width: 340px; margin: 0 12px; color: var(--muted); text-align: center; font: 11px/1.5 Georgia, serif; }
 
 #enter-game,
-#restart-game {
+#restart-game,
+#retry-boss {
   position: relative;
   min-width: 218px;
   padding: 14px 24px;
@@ -167,6 +168,19 @@ kbd { font: inherit; }
 .ability-panel .boost-status { max-width: 260px; padding: 7px 9px; border: 1px solid #88b67b; background: rgba(49, 88, 44, .45); color: #cfefb6; line-height: 1.6; }
 .boost-status[hidden] { display: none; }
 
+.equipment-status { position: absolute; top: 168px; left: 24px; max-width: 330px; color: #b9d6cd; font: 600 8px/1.6 "Segoe UI", sans-serif; letter-spacing: .04em; text-shadow: 0 1px 4px #211812; }
+.boss-panel { position: absolute; top: 24px; right: 24px; width: min(400px, 44vw); padding: 15px 18px; border: 1px solid rgba(225,154,94,.45); background: linear-gradient(135deg, rgba(58,30,20,.92), rgba(24,22,17,.86)); box-shadow: 0 12px 36px rgba(0,0,0,.24); }
+.boss-panel[hidden] { display: none; }
+.boss-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.boss-heading strong { color: #edcda3; font: 15px/1.2 Georgia, serif; letter-spacing: .06em; }
+.boss-heading span { color: #bce0cc; white-space: nowrap; font: 700 9px/1 "Segoe UI", sans-serif; }
+.boss-track { height: 7px; margin: 12px 0 10px; background: rgba(255,255,255,.12); }
+#boss-health { height: 100%; width: 100%; background: linear-gradient(90deg, #b46640, #e8b46b); transition: width 180ms ease; }
+#boss-phase { display: block; color: #ead7b6; font: 600 9px/1.5 "Segoe UI", sans-serif; letter-spacing: .04em; }
+.boss-mode .objective-panel { display: none; }
+#boss-retry p { max-width: 500px; line-height: 1.6; margin: 6px 0; }
+#retry-boss { margin-top: 24px; }
+
 .controls-card { left: 24px; bottom: 24px; display: flex; gap: 15px; padding: 10px 13px; color: var(--muted); font: 500 10px/1 "Segoe UI", sans-serif; }
 kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
 .reticle { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: rgba(245,237,216,.62); transform: translate(-50%,-50%); box-shadow: 0 0 10px rgba(255,255,255,.55); }
@@ -189,7 +203,7 @@ kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
 
 .level-transition { inset: 0; pointer-events: none; background: radial-gradient(circle, rgba(57,39,25,.54), rgba(12,8,6,.74)); }
 .level-transition.is-hidden,
-.completion-screen.is-hidden { opacity: 0; visibility: hidden; }
+.completion-screen.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 .level-transition span { color: var(--amber); font: 700 10px/1 "Segoe UI", sans-serif; letter-spacing: .28em; text-transform: uppercase; }
 .level-transition h2 { margin: 13px 0 8px; font-size: clamp(42px, 7vw, 84px); font-weight: 400; letter-spacing: .08em; }
 .level-transition p { margin: 0; color: var(--muted); font-style: italic; }
@@ -261,6 +275,13 @@ kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
 .touch-mode .objective-panel strong { font-size: 12px; }
 .touch-mode .objective-label { line-height: 1.35; font-size: 7px; letter-spacing: .08em; }
 .touch-mode .objective-panel small { font-size: 7px; line-height: 1.4; }
+.touch-mode .equipment-status { top: max(181px, calc(env(safe-area-inset-top) + 173px)); left: max(12px, env(safe-area-inset-left)); max-width: 80vw; font-size: 7px; }
+.touch-mode .boss-panel { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: min(44vw, 270px); padding: 10px; }
+.touch-mode .boss-heading { display: block; }
+.touch-mode .boss-heading strong { display: block; font-size: 12px; }
+.touch-mode .boss-heading span { display: block; margin-top: 5px; font-size: 8px; }
+.touch-mode .boss-track { margin: 8px 0 6px; height: 5px; }
+.touch-mode #boss-phase { font-size: 7px; }
 .touch-mode .ability-panel { display: grid; top: max(136px, calc(env(safe-area-inset-top) + 128px)); left: 50%; right: auto; bottom: auto; transform: translateX(-50%); max-width: 260px; padding: 6px 9px; justify-items: center; font-size: 8px; }
 .touch-mode .ability-panel > strong,
 .touch-mode .ability-panel > span:last-child { display: none; }
@@ -312,6 +333,7 @@ kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
   .touch-mode .meter-label { margin: 4px 0; }
   .touch-mode .satiety-track, .touch-mode .chonk-track { margin-bottom: 4px; height: 4px; }
   .touch-mode .ability-panel { top: max(106px, calc(env(safe-area-inset-top) + 98px)); }
+  .touch-mode .equipment-status { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); max-width: 32vw; text-align: center; font-size: 7px; }
   .touch-mode .toast { bottom: auto; top: 40%; max-width: 320px; }
   .touch-mode .prompt { bottom: 30%; }
   .touch-look-hint { top: 38%; }

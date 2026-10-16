@@ -57,6 +57,12 @@
         <span id="level-index" class="objective-index">01</span>
         <div><span id="level-name" class="objective-label">Living Room Zoomies</span><strong id="objective-text">Find the first supper</strong><small id="level-progress">LEVEL 1 OF 3 · XP 0</small></div>
       </section>
+      <div id="equipment-status" class="equipment-status" aria-live="polite">COLLAR NONE | PENDANT NONE</div>
+      <section id="boss-panel" class="boss-panel" aria-label="Boss encounter" hidden>
+        <div class="boss-heading"><strong id="boss-name">THE GRAND SUCK</strong><span id="boss-lives">9 / 9 LIVES</span></div>
+        <div class="boss-track" role="progressbar" aria-label="Vacuum health" aria-valuemin="0" aria-valuemax="8" aria-valuenow="8"><div id="boss-health"></div></div>
+        <span id="boss-phase">CIRCLE BEHIND / CLAW THE GREEN REAR</span>
+      </section>
       <section class="ability-panel" aria-label="Abilities">
         <span id="boost-status" class="boost-status" role="status" hidden></span>
         <span id="jump-readiness">LEAP READY</span>
@@ -77,10 +83,17 @@
       <p id="transition-copy">Gather the scents and reach the pet door.</p>
     </section>
     <section id="completion-screen" class="completion-screen is-hidden" aria-live="polite">
-      <p class="eyebrow">All three rooms cleared</p>
+      <p class="eyebrow">Three rooms cleared. Vacuum defeated.</p>
       <h2>MEGA CHONK</h2>
       <p id="completion-stats">The house has a new ruler.</p>
       <button id="restart-game" type="button">Run again</button>
+    </section>
+    <section id="boss-retry" class="completion-screen is-hidden" aria-labelledby="boss-retry-title">
+      <p class="eyebrow">Nine lives spent</p>
+      <h2 id="boss-retry-title">DUSTED OFF</h2>
+      <p>The vacuum won this round. Your collar stays; the pendant is lost.</p>
+      <p>Retry this fight with nine fresh lives. No need to replay the house.</p>
+      <button id="retry-boss" type="button">Retry vacuum fight</button>
     </section>
     <div class="cinematic-bars" aria-hidden="true"></div>
     <div class="vignette" aria-hidden="true"></div>

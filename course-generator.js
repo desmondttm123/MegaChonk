@@ -1,3 +1,5 @@
+import { assessJump } from "./jump-rules.js";
+
 // Pure layout planning: reserve navigable corridors before adding household clutter.
 export function overlaps(a, b, margin = 0) {
   return a.maxX + margin > b.minX && a.minX - margin < b.maxX
@@ -67,10 +69,11 @@ export function generateCourse({ random, difficulty, bounds, boxes, spawn, targe
     && !corridors.some((box) => overlaps(area, box, 0.12));
   const place = (type, count, dimensions) => {
     let placed = 0;
-    for (let attempt = 0; placed < count && attempt < count * 240; attempt += 1) {
+    for (let attempt = 0; placed < count && attempt < count * 1200; attempt += 1) {
       const x = bounds.minX + 2 + random() * (bounds.maxX - bounds.minX - 4);
       const z = bounds.minZ + 2 + random() * (bounds.maxZ - bounds.minZ - 4);
       const size = dimensions();
+      if (size.jump && !size.jump.allowed) continue;
       const area = footprint(x, z, size.reserveWidth ?? size.width, size.reserveDepth ?? size.depth);
       if (!clear(area)) continue;
       const obstacle = { type, x, z, ...size, phase: random() * Math.PI * 2, area };
@@ -79,12 +82,22 @@ export function generateCourse({ random, difficulty, bounds, boxes, spawn, targe
       placed += 1;
     }
   };
-  place("bridge", 1 + Math.floor(difficulty / 2), () => ({ width: 4.6 + random() * 1.2, depth: 2.4 + random() * 0.4, height: 0.34 }));
+  // Reserve the largest swept hazards first, before smaller obstacles fragment
+  // the available space around protected routes and optional enemy patrols.
   place("vacuum", 1 + Math.floor(difficulty / 2), () => {
     const length = 2.0 + random() * 0.7;
     return { width: (length + 0.65) * 2, depth: (length + 0.65) * 2, length };
   });
-  place("hurdle", 3 + difficulty, () => ({ width: 2.3 + random() * 1.7, depth: 0.46, height: 0.32 + random() * (0.20 + difficulty * 0.06) }));
-  place("clutter", 20 + difficulty * 4, () => ({ width: 0.9 + random() * 0.85, depth: 0.9 + random() * 0.65, height: 0.24 + random() * 0.58, style: Math.floor(random() * 3) }));
+  place("bridge", 1 + Math.floor(difficulty / 2), () => {
+    const depth = 2.4 + random() * 0.4;
+    return { width: 4.6 + random() * 1.2, depth, height: 0.34, jump: assessJump({ rise: 0.34, gap: (depth - 1.4) / 2 }) };
+  });
+  place("hurdle", 3 + difficulty, () => {
+    const width = 2.3 + random() * 1.7;
+    const height = Math.min(assessJump().peak - 0.20, 0.32 + random() * (0.20 + difficulty * 0.06));
+    const jump = assessJump({ rise: height, gap: 0.46 });
+    return { width, depth: 0.46, height, reserveWidth: width + 0.6, reserveDepth: 0.46 + jump.runup + jump.landing, jump };
+  });
+  place("clutter", 20 + difficulty * 4, () => ({ width: 0.9 + random() * 0.85, depth: 0.9 + random() * 0.65, height: 0.24 + random() * 0.44, style: Math.floor(random() * 3) }));
   return { obstacles, routes, corridorWidth: 1.8 };
 }

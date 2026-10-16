@@ -33,14 +33,16 @@ const captureScreenshot = require("./capture-screenshot");
           if (counts.bridge < 1 || counts.vacuum < 1 || counts.hurdle < 3 || counts.clutter < 18) fail(`Underfilled course ${JSON.stringify(counts)}`);
           const corridor = routes.flat().map(([x, , z]) => footprint(x, z, corridorWidth));
           for (const [index, obstacle] of obstacles.entries()) {
+            if (["hurdle", "bridge"].includes(obstacle.type) && !obstacle.jump?.allowed) fail("Jump obstacle is outside the conservative jump envelope");
+            if (obstacle.type === "hurdle" && obstacle.reserveDepth < obstacle.depth + 3.2) fail("Hurdle lacks clear run-up/landing space");
             if (corridor.some((area) => overlaps(obstacle.area, area))) fail("Generated obstacle blocks a reserved route");
             if (obstacles.slice(index + 1).some((other) => overlaps(obstacle.area, other.area))) fail("Obstacles overlap");
           }
           // Re-plan against actual generated collision and full swept hazard envelopes.
-          const boxes = [...nav.colliders, ...nav.hazards.map((hazard) => hazard.type === "spill"
+          const boxes = [...nav.colliders, ...nav.adventure.enemies.filter((enemy) => enemy.active).map((enemy) => ({ ...footprint(enemy.x, enemy.z, 5), minY: 0, maxY: 2 })), ...nav.hazards.map((hazard) => hazard.type === "spill"
             ? { ...hazard, minY: 0, maxY: 2 }
             : { ...footprint(hazard.x, hazard.z, (hazard.length + 0.65) * 2), minY: 0, maxY: 2 })];
-          const targets = [...nav.foods.filter((food) => food.position[1] < 2).map((food) => food.position), nav.verticalRoutes[0].stairs.entry, nav.goal.position];
+          const targets = [...nav.foods.filter((food) => food.position[1] < 2).map((food) => food.position), ...nav.adventure.items.filter((item) => item.active).map((item) => [item.x, 0, item.z]), nav.verticalRoutes[0].stairs.entry, nav.goal.position];
           for (const target of targets) if (!findFloorRoute(nav.position, target, nav.bounds, boxes, nav.bodyHeight)) fail(`No safe route to ${target}`);
           const signature = JSON.stringify(obstacles);
           game.regenerate(seed);

@@ -27,6 +27,9 @@ agents and human contributors, not a running service or autonomous background jo
 | Gameplay, physics, world, animation playback, HUD | `game.js` |
 | Mouse input filtering and angular smoothing | `camera-controls.js` |
 | Virtual joystick, touch gestures, action buttons, lifecycle cleanup | `touch-controls.js` |
+| Shared jump/pace physics and conservative generation envelope | `jump-rules.js` |
+| Persistent run equipment, reusable boss phases and attack rules | `adventure-rules.js` |
+| Enemy/pickup/boss visuals and world interaction | `adventure-world.js` |
 | Seeded obstacle placement and protected routes | `course-generator.js` |
 | Page shell and styling | `index.html`, `styles.css` |
 | Active cat asset pipeline | `tools/generate_stray_style_cat.py` |
@@ -49,6 +52,7 @@ agents and human contributors, not a running service or autonomous background jo
 - Preserve multi-pointer touch input, analog joystick strength/dead zone, action-button isolation, and reset on cancellation/focus loss/rotation/transitions. Touch play must not require pointer lock; keep desktop input working and test portrait/landscape layouts.
 - Keep render geometry, collision, support surfaces, and moving-platform ownership aligned. Preserve capsule depenetration and gallery underside collision fixes.
 - Keep generated obstacles outside protected routes and full moving-hazard envelopes. Do not make optional snacks a requirement for opening a pet door.
+- Preserve the round-three boss gate, rear-only claw vulnerability, telegraphed suction, nine-life retry, one hit per attack, guaranteed enemy drops, and run-scoped equipment ownership. Combat death removes the pendant only; ordinary environmental bumps are not combat deaths. Bosses must be winnable without accessories.
 - Never publish credentials or store tokens in handoff notes. Git pushes and deployment/settings changes require the user's authorization; these files do not grant it.
 
 ## Verify Before Handoff

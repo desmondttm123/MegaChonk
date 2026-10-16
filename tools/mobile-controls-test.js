@@ -160,7 +160,7 @@ const target = process.argv[2] || "http://127.0.0.1:4180/";
       await page.setViewportSize(size);
       await page.waitForTimeout(180);
       const layout = await page.evaluate(() => {
-        const elements = [document.querySelector("#move-stick"), ...document.querySelectorAll(".touch-actions button"), document.querySelector("#touch-toggle"), document.querySelector(".status-panel"), document.querySelector(".objective-panel"), document.querySelector(".ability-panel")];
+        const elements = [document.querySelector("#move-stick"), ...document.querySelectorAll(".touch-actions button"), document.querySelector("#touch-toggle"), document.querySelector(".status-panel"), document.querySelector(".objective-panel"), document.querySelector(".ability-panel"), document.querySelector("#equipment-status")];
         return { width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth, scrollY, controls: elements.map((element) => { const b = element.getBoundingClientRect(); return { name: element.id || element.dataset.touchAction || element.className, x: b.x, y: b.y, width: b.width, height: b.height }; }) };
       });
       assert.equal(layout.width, size.width, "Mobile viewport must not expand beyond the device width");
@@ -196,6 +196,40 @@ const target = process.argv[2] || "http://127.0.0.1:4180/";
       assert.equal((await snapshot()).jumps, before, "Touch jump bypassed hunger/weight limits");
     }
     await page.evaluate(() => { window.__megaChonk.state.level = 2; window.__megaChonk.completeLevel(); });
+    await page.waitForFunction(() => window.__megaChonk.state.stage === "boss" && !window.__megaChonk.state.transitioning);
+    assert.equal(await page.locator("#boss-panel").isVisible(), true, "Third room must lead to the vacuum encounter");
+    await page.waitForTimeout(650);
+    for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 320, height: 568 }, { width: 568, height: 320 }]) {
+      await page.setViewportSize(size);
+      await page.waitForTimeout(200);
+      const bounds = await page.evaluate(() => [document.querySelector(".status-panel"), document.querySelector("#boss-panel"), document.querySelector("#equipment-status"), document.querySelector(".ability-panel"), document.querySelector("#move-stick"), document.querySelector("#touch-toggle"), ...document.querySelectorAll(".touch-actions button")].map((el) => {
+        const b = el.getBoundingClientRect(); return { name: el.id || el.className || el.dataset.touchAction, x: b.x, y: b.y, right: b.right, bottom: b.bottom };
+      }));
+      for (const b of bounds) assert.ok(b.x >= 0 && b.y >= 0 && b.right <= size.width + 1 && b.bottom <= size.height + 1, `Boss UI offscreen: ${JSON.stringify(b)}`);
+      for (const [index, a] of bounds.entries()) for (const b of bounds.slice(index + 1)) assert.ok(!(a.x < b.right - 1 && a.right > b.x + 1 && a.y < b.bottom - 1 && a.bottom > b.y + 1), `Boss controls overlap at ${size.width}x${size.height}: ${a.name}/${b.name}`);
+      if (size.width === 390 || size.width === 844) await captureScreenshot(page, { path: path.join(root, "assets/previews", `mega-chonk-boss-mobile-${size.width === 390 ? "portrait" : "landscape"}.png`) });
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      const game = window.__megaChonk;
+      game.bossScenario({ phase: "inhale", lives: 1 });
+      game.character.root.position.set(0, 0, 0.3);
+      game.state.invulnerable = 0;
+    });
+    await page.waitForFunction(() => window.__megaChonk.state.bossRetry);
+    assert.equal(await page.locator("#touch-controls").isVisible(), false, "Fight loss must release/hide virtual gameplay input");
+    await page.locator("#boss-retry").waitFor({ state: "visible" });
+    await tap("#retry-boss");
+    await page.waitForFunction(() => window.__megaChonk.touchSnapshot().playing);
+    assert.equal((await snapshot()).adventure.boss.lives, 9);
+    await page.evaluate(() => {
+      const game = window.__megaChonk;
+      game.bossScenario({ phase: "recover", health: 1 });
+      game.character.root.position.set(0, 0, -4.3);
+      game.character.heading = 0;
+      game.character.root.rotation.y = 0;
+    });
+    await tap('[data-touch-action="claw"]');
     await page.waitForFunction(() => window.__megaChonk.state.gameComplete);
     assert.equal(await page.locator("#touch-controls").isVisible(), false);
     await tap("#restart-game");

@@ -31,6 +31,11 @@ jobs:
           node --input-type=module --check < course-generator.js
           node --input-type=module --check < camera-controls.js
           node --input-type=module --check < touch-controls.js
+          node --input-type=module --check < jump-rules.js
+          node --input-type=module --check < adventure-rules.js
+          node --input-type=module --check < adventure-world.js
+      - name: Check adventure rules
+        run: node tools/adventure-rules-test.js
       - name: Build runtime-only site
         run: python3 tools/build_pages.py
       - name: Configure GitHub Pages

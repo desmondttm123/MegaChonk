@@ -63,7 +63,7 @@ Portrait and landscape layouts are supported, with safe-area spacing for phone e
 
 ## Core Loop
 
-Find every bowl in a room, then reach the glowing pet door. Complete Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run to finish a run.
+Find every bowl in a room, then reach the glowing pet door. Clear Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run, then defeat the giant vacuum to finish a run.
 
 - Movement accelerates and decelerates instead of starting or stopping instantly.
 - The cat smoothly turns toward camera-relative movement.
@@ -83,6 +83,23 @@ Find every bowl in a room, then reach the glowing pet door. Complete Living Room
 - The cat is visible from any angle with interpolated bone animation and smooth transitions between actions.
 - Foot targets guide the walk cycle and seated poses; the idle clip includes breathing, blinking, head turns, ear movement, and tail sway. Forelegs have higher anatomical elbows, articulated scapulae, and smoothed joint weights.
 - Fur uses white/chestnut vertex colors, subtle surface detail, and a soft sheen. Larger inset eyes have round, almost-black night pupils, thin amber iris edges, and animated eyelids. This is an improved game prototype rather than a production AAA animal asset.
+
+## Enemies And Equipment
+
+Each room has an optional blue collar and gold pendant. Walk into a pickup to equip it; the stronger item in each slot wins. Equipment carries across rooms within the current run, not across browser reloads.
+
+- Collars grant +3%, +6%, or +9% movement speed by tier and survive deaths.
+- Pendants double claw damage and reduce movement hunger drain by 10%, 20%, or 30%. A combat death removes the pendant, not the collar.
+- Clockwork-mouse enemies patrol optional areas, show a warning ring, then pounce. Claw or bite while facing them; every defeat drops a fish snack or pendant. Snacks restore six satiety without extra chonk. Ordinary spills/vacuum bumps remain nonlethal checkpoint setbacks.
+- Generated hurdles use the same jump physics as the cat, with conservative height/range margins and reserved run-up/landing space. Planning assumes at least 38 satiety and at most 75 chonk, without equipment or catnip. Hunger/heavy jump restrictions still apply; clear corridors and stairs remain available rather than forcing a blocked jump.
+
+## Final Vacuum Boss
+
+The third room's pet door leads to **The Grand Suck**, a giant vacuum in a clear house arena. It turns toward the cat, warns with an amber cone, inhales through a red cone, then pauses to cool down. Circle behind it and face the green rear filter before clawing. The front is armored and bites do not damage the boss.
+
+The fight starts with nine lives. Close front-facing suction costs one life and any equipped pendant; surviving lives retain damage already dealt to the vacuum. On the ninth loss, **Retry vacuum fight** resets boss health and gives nine fresh lives without replaying the rooms. The collar stays. The fight is winnable without equipment. Victory grants 250 XP and completes the run; **Run again** resets all equipment.
+
+Future bosses can reuse the encounter state machine with different phase definitions and attack handlers. See [adventure system](docs/adventure-system.md) for extension points and verification boundaries.
 
 ## Main Assets
 
@@ -118,6 +135,8 @@ This runs in a separate process and does not alter an open Blender scene.
 
 `tools/vertical-challenges-test.js` walks up and down stairs in all three rooms, compares normal and catnip-assisted long jumps, checks boost expiry and hunger/weight limits, and tests the gallery underside collision.
 
+`tools/adventure-rules-test.js` checks pure equipment, boss, and jump rules without a browser. `tools/adventure-test.js` checks live pickups, enemy kills/loot/deaths, real hurdle jumps, boss weak points, all nine losses/retry, and a keyboard-driven unequipped boss victory.
+
 `tools/pages-test.js` tests the runtime-only build mounted under `/MegaChonk/`. Pass the live URL to test the hosted version; it checks asset hashes, attribution, level generation, movement, jumping, and browser errors.
 
-`tools/autoplay-test.js [seed]` drives the game with keyboard controls through every meal and pet door on all three levels. It fails on an unreachable objective, broken transition, browser error, or incorrect final score. The browser tests require Node.js, Playwright, Microsoft Edge, and Python on PATH.
+`tools/autoplay-test.js [seed]` drives the game with keyboard controls through every meal and pet door on all three levels, then fights the vacuum using the same controls. It fails on an unreachable objective, broken transition, failed boss encounter, browser error, or incorrect final score. The browser tests require Node.js, Playwright, Microsoft Edge, and Python on PATH.

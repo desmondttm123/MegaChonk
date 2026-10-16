@@ -8,6 +8,9 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { footprint, generateCourse } from "./course-generator.js";
 import { MouseLookController } from "./camera-controls.js";
 import { TouchControls } from "./touch-controls.js";
+import { JUMP_PHYSICS, getJumpProfile, speedMultiplier, assessJump } from "./jump-rules.js";
+import { RunProgress } from "./adventure-rules.js";
+import { AdventureWorld } from "./adventure-world.js";
 
 const CAT_SCALE = 0.84;
 const CAT_BODY_HEIGHT = 0.76;
@@ -45,6 +48,14 @@ const ui = {
   completion: document.querySelector("#completion-screen"),
   completionStats: document.querySelector("#completion-stats"),
   restart: document.querySelector("#restart-game"),
+  equipment: document.querySelector("#equipment-status"),
+  bossPanel: document.querySelector("#boss-panel"),
+  bossName: document.querySelector("#boss-name"),
+  bossHealth: document.querySelector("#boss-health"),
+  bossLives: document.querySelector("#boss-lives"),
+  bossPhase: document.querySelector("#boss-phase"),
+  bossRetry: document.querySelector("#boss-retry"),
+  retryBoss: document.querySelector("#retry-boss"),
 };
 
 const scene = new THREE.Scene();
@@ -125,6 +136,10 @@ const state = {
   runStartedAt: 0,
   invulnerable: 0,
   catnipTime: 0,
+  stage: "rooms",
+  bossRetry: false,
+  attackCooldown: 0,
+  pendingAttack: null,
 };
 
 const character = {
@@ -153,10 +168,9 @@ let dust;
 
 const CAT_ACTIONS = ["Idle", "Walk", "Groom", "Jump", "Sit", "Claw", "Bite"];
 const MOVEMENT_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"];
-const GRAVITY = 15.8;
+const GRAVITY = JUMP_PHYSICS.gravity;
 const CATNIP_DURATION = 18;
-const CATNIP_SPEED = 1.32;
-const CATNIP_LEAP = 1.18;
+const CATNIP_SPEED = JUMP_PHYSICS.catnipSpeed;
 const STEP_HEIGHT = 0.18;
 const LEVELS = [
   {
@@ -188,6 +202,19 @@ const FOOD_LABELS = ["KIBBLE", "FISH", "SARDINES", "TREAT", "SUPPER", "CHICKEN",
 let activeGoal = null;
 let transitionTimer = null;
 let eatingTarget = null;
+const progress = new RunProgress();
+const adventure = new AdventureWorld({
+  root: levelRoot, progress, onToast: showToast, onDeath: combatDeath,
+  onFood: () => { state.satiety = Math.min(100, state.satiety + 6); showToast("Fish snack: +6 satiety, no extra chonk.", 2.5); },
+  onVictory: () => {
+    state.xp += 250;
+    state.transitioning = true;
+    touchControls?.setPlaying(false);
+    resetCombatInput();
+    clearTimeout(transitionTimer);
+    transitionTimer = setTimeout(finishGame, 1800);
+  },
+});
 
 function seededRandom(seed) {
   const value = Math.sin(seed * 91.173) * 43758.5453;
@@ -538,6 +565,7 @@ function createLevelRandom(levelIndex) {
 }
 
 function clearLevel() {
+  adventure.clear();
   for (const child of [...levelRoot.children]) {
     levelRoot.remove(child);
     child.traverse((object) => {
@@ -835,6 +863,7 @@ function buildGeneratedCourse(definition, random, difficulty) {
   const jitter = (amount) => (random() - 0.5) * amount;
   const height = 0.58 + difficulty * 0.08;
   const platform = createStaticPlatform(-3.4 + jitter(2.0), 3.2 + jitter(1.5), 2.5, 2.5, height);
+  if (!assessJump({ rise: height }).allowed) throw new Error("Required food platform exceeds the safe jump envelope");
   const floorAnchors = [[-5.0, 11.2], [6.0, 7.4], [-12.0, -2.0]];
   for (let index = 0; index < definition.foods - 2; index += 1) {
     const [x, z] = floorAnchors[index];
@@ -849,9 +878,10 @@ function buildGeneratedCourse(definition, random, difficulty) {
     verticalRoutes[0].stairs.entry,
     activeGoal.position.toArray(),
     [0, 0, 0.2],
+    ...adventure.items.map((item) => [item.x, 0, item.z]),
   ];
   generatedCourse = generateCourse({
-    random, difficulty, bounds: WORLD_BOUNDS, boxes: colliders,
+    random, difficulty, bounds: WORLD_BOUNDS, boxes: [...colliders, ...adventure.reservations],
     spawn: definition.spawn, targets, bodyHeight: CAT_BODY_HEIGHT,
     protectedAreas: [
       footprint(-7.5, -3.8, 3.8, 11.0),
@@ -880,6 +910,11 @@ function buildGeneratedCourse(definition, random, difficulty) {
 
 function buildLevel(levelIndex, announce = true) {
   clearLevel();
+  state.stage = "rooms";
+  state.bossRetry = false;
+  ui.bossRetry.classList.add("is-hidden");
+  state.pendingAttack = null;
+  state.attackCooldown = 0;
   const definition = LEVELS[levelIndex];
   const random = createLevelRandom(levelIndex);
   state.level = levelIndex;
@@ -893,7 +928,7 @@ function buildLevel(levelIndex, announce = true) {
   buildLevelShell(definition, random);
   buildVerticalRoute(definition);
   createGoal(definition.goal[0], definition.goal[1]);
-
+  adventure.buildRoom(levelIndex, colliders);
   buildGeneratedCourse(definition, random, levelIndex);
 
   const spawn = new THREE.Vector3(...definition.spawn);
@@ -983,12 +1018,19 @@ function setAction(name, fadeDuration = 0.24) {
   character.currentAction = next;
 }
 
-function triggerAction(name, duration) {
+function triggerAction(name, duration, combat = true) {
   const next = character.actions[name];
-  if (!next || state.transitioning || state.gameComplete) return false;
+  if (!next || !state.started || state.transitioning || state.gameComplete || (combat && state.attackCooldown > 0)) return false;
   state.sitting = false;
   state.forcedAction = name;
   state.actionTime = duration;
+  if (combat && ["Claw", "Bite"].includes(name)) {
+    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(FOOD_SCALE);
+    eatingTarget = null;
+    state.eatingTime = 0;
+    state.attackCooldown = 0.78;
+    state.pendingAttack = { kind: name, delay: 0.18 };
+  }
   if (next === character.currentAction) next.reset().play();
   setAction(name, 0.08);
   return true;
@@ -1076,6 +1118,18 @@ async function loadCat() {
     }
   });
   character.root.add(character.model);
+  const neck = character.model.getObjectByName("Neck");
+  if (neck?.isBone) {
+    character.collar = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.022, 12, 48), new THREE.MeshStandardMaterial({ color: 0x73c4d1, roughness: 0.65 }));
+    character.collar.name = "EquippedCollar";
+    character.collar.rotation.x = Math.PI / 2;
+    character.collar.position.y = 0.13;
+    neck.add(character.collar);
+    character.pendant = new THREE.Mesh(new THREE.OctahedronGeometry(0.045, 1), new THREE.MeshStandardMaterial({ color: 0xe7b961, metalness: 0.7, roughness: 0.3 }));
+    character.pendant.name = "EquippedPendant";
+    character.pendant.position.set(0, 0.13, 0.15);
+    neck.add(character.pendant);
+  }
 
   character.mixer = new THREE.AnimationMixer(character.model);
   for (const name of CAT_ACTIONS) {
@@ -1111,21 +1165,8 @@ async function loadCat() {
   setAction("Idle", 0);
 }
 
-function speedMultiplier(satiety, chonk) {
-  const hungerCurve = 0.50 + 0.50 * Math.exp(-Math.pow((satiety - 58) / 31, 2));
-  const weightCurve = 0.58 + 0.42 * Math.exp(-Math.pow((chonk - 52) / 30, 2));
-  return hungerCurve * weightCurve;
-}
-
 function jumpProfile() {
-  if (state.satiety <= 8) return { allowed: false, impulse: 0, label: "TOO HUNGRY TO LEAP" };
-  if (state.chonk >= 90) return { allowed: false, impulse: 0, label: "TOO CHONKY TO LEAP" };
-  const fed = THREE.MathUtils.smoothstep(state.satiety, 8, 48);
-  const heavyPenalty = 1 - THREE.MathUtils.smoothstep(state.chonk, 58, 90) * 0.54;
-  const overfullPenalty = 1 - THREE.MathUtils.smoothstep(state.satiety, 84, 100) * 0.22;
-  const impulse = (4.05 + 2.25 * fed * heavyPenalty * overfullPenalty) * (state.catnipTime > 0 ? CATNIP_LEAP : 1);
-  const label = state.catnipTime > 0 ? "CATNIP LEAP READY" : impulse > 5.75 ? "LEAP READY" : impulse > 4.75 ? "SHORT LEAP" : "WEAK LEAP";
-  return { allowed: true, impulse, label };
+  return getJumpProfile(state.satiety, state.chonk, state.catnipTime > 0);
 }
 
 function requestJump() {
@@ -1163,6 +1204,7 @@ function signedBoxDistance(x, z, box) {
 
 function canOccupy(x, z, y = character.root.position.y) {
   if (x < WORLD_BOUNDS.minX || x > WORLD_BOUNDS.maxX || z < WORLD_BOUNDS.minZ || z > WORLD_BOUNDS.maxZ) return false;
+  if (adventure.blocks(x, z, y)) return false;
   return !colliders.some((box) => {
     if (!circleHitsBox(x, z, character.radius, box)) return false;
     const clearsTop = y >= box.maxY - 0.055;
@@ -1279,7 +1321,7 @@ function moveCharacter(delta) {
   }
 
   const trotting = keys.has("ShiftLeft") || keys.has("ShiftRight") || touchControls?.trotting;
-  const maxSpeed = (trotting ? 4.95 : 3.15) * speedMultiplier(state.satiety, state.chonk) * (state.catnipTime > 0 ? CATNIP_SPEED : 1);
+  const maxSpeed = (trotting ? JUMP_PHYSICS.trot : JUMP_PHYSICS.walk) * speedMultiplier(state.satiety, state.chonk) * (state.catnipTime > 0 ? CATNIP_SPEED : 1) * progress.stats.speed;
   temp.targetVelocity.copy(temp.desired).multiplyScalar(maxSpeed);
   const response = hasInput ? 7.2 : 10.5;
   character.velocity.lerp(temp.targetVelocity, 1 - Math.exp(-response * delta));
@@ -1301,7 +1343,7 @@ function moveCharacter(delta) {
     character.heading = dampAngle(character.heading, targetHeading, trotting ? 12 : 9, delta);
     character.root.rotation.y = character.heading;
     state.idleTime = 0;
-    state.satiety = Math.max(0, state.satiety - delta * (trotting ? 0.13 : 0.075));
+    state.satiety = Math.max(0, state.satiety - delta * (trotting ? 0.13 : 0.075) * progress.stats.hungerDrain);
     state.chonk = Math.max(26, state.chonk - delta * actualSpeed * 0.0016);
   } else {
     state.idleTime += delta;
@@ -1328,6 +1370,7 @@ function moveCharacter(delta) {
 }
 
 function updateFood(delta, speed) {
+  if (state.attackCooldown > 0 || state.stage === "boss" || state.transitioning) return;
   let nearest = null;
   let nearestDistance = Infinity;
   for (const food of foods) {
@@ -1367,7 +1410,7 @@ function updateFood(delta, speed) {
     eatingTarget = nearest;
   }
   ui.prompt.textContent = `EATING ${nearest.label}`;
-  if (state.eatingTime === 0) triggerAction("Bite", 0.72);
+  if (state.eatingTime === 0) triggerAction("Bite", 0.72, false);
   state.eatingTime += delta;
   const consumed = Math.min(delta, 1.25 - nearest.consumed);
   nearest.consumed += consumed;
@@ -1439,6 +1482,8 @@ function respawnCharacter(reason) {
   state.sitting = false;
   state.forcedAction = null;
   state.actionTime = 0;
+  state.pendingAttack = null;
+  state.jumpBuffer = 0;
   state.invulnerable = 1.25;
   state.bonks += 1;
   state.satiety = Math.max(0, state.satiety - 0.8);
@@ -1491,7 +1536,8 @@ function updateCheckpoints(elapsed) {
 function showLevelCard(definition, index) {
   clearTimeout(transitionTimer);
   state.transitioning = true;
-  ui.transitionKicker.textContent = `Level ${String(index + 1).padStart(2, "0")} of 03`;
+  touchControls?.setPlaying(false);
+  ui.transitionKicker.textContent = `Level ${String(index + 1).padStart(2, "0")} of ${String(LEVELS.length).padStart(2, "0")}`;
   ui.transitionTitle.textContent = definition.name;
   ui.transitionCopy.textContent = definition.description;
   ui.transition.classList.remove("is-hidden");
@@ -1506,6 +1552,7 @@ function finishGame() {
   state.transitioning = true;
   state.gameComplete = true;
   state.started = false;
+  touchControls?.setPlaying(false);
   ui.transitionKicker.textContent = "";
   ui.transitionTitle.textContent = "";
   ui.transitionCopy.textContent = "";
@@ -1520,17 +1567,18 @@ function finishGame() {
 function completeLevel() {
   if (state.transitioning || state.gameComplete) return;
   state.transitioning = true;
+  touchControls?.setPlaying(false);
   character.velocity.set(0, 0, 0);
   state.xp += 100;
   state.chonk = Math.max(28, state.chonk - 2.5);
   const definition = LEVELS[state.level];
   ui.transitionKicker.textContent = "Room clear · +100 XP";
   ui.transitionTitle.textContent = definition.name;
-  ui.transitionCopy.textContent = state.level === LEVELS.length - 1 ? "The whole house belongs to its champion." : "Catching your breath before the next room.";
+  ui.transitionCopy.textContent = state.level === LEVELS.length - 1 ? "One last intruder: the giant vacuum is waking up downstairs." : "Catching your breath before the next room. Your accessories carry forward.";
   ui.transition.classList.remove("is-hidden");
   transitionTimer = setTimeout(() => {
     if (state.level === LEVELS.length - 1) {
-      finishGame();
+      startBossFight();
       return;
     }
     const nextLevel = state.level + 1;
@@ -1556,6 +1604,11 @@ function updateGoal(delta, elapsed) {
 }
 
 function restartRun() {
+  clearTimeout(transitionTimer);
+  progress.reset();
+  state.stage = "rooms";
+  state.bossRetry = false;
+  ui.bossRetry.classList.add("is-hidden");
   state.runSeed = Math.floor(Math.random() * 900000) + 100000;
   state.satiety = 62;
   state.chonk = 48;
@@ -1571,6 +1624,138 @@ function restartRun() {
   buildLevel(0, false);
   showLevelCard(LEVELS[0], 0);
   requestCameraControl();
+}
+
+function resetCombatInput() {
+  keys.clear();
+  touchControls?.reset();
+  state.pendingAttack = null;
+  state.attackCooldown = 0;
+  state.jumpBuffer = 0;
+  state.forcedAction = null;
+  state.actionTime = 0;
+  state.sitting = false;
+  character.velocity.set(0, 0, 0);
+}
+
+function startBossFight() {
+  clearTimeout(transitionTimer);
+  clearLevel();
+  state.stage = "boss";
+  state.bossRetry = false;
+  state.gameComplete = false;
+  state.started = true;
+  state.transitioning = true;
+  touchControls?.setPlaying(false);
+  resetCombatInput();
+  // A fresh arena removes random clutter; there is always room to circle the boss.
+  buildLevelShell({ theme: "boss" }, createLevelRandom(3));
+  addRug(0, -2, 18, 17, materials.upholsteryWarm);
+  for (const x of [-15, 15]) {
+    addCouch(x, 7, materials.upholstery);
+    addBookcase(x, -14, 2.4);
+    addHousePlant(x, -7, 1.1);
+  }
+  adventure.buildBoss();
+  adventure.bossView.group.traverse((object) => {
+    if (object.isMesh && !object.material.isMeshBasicMaterial) cameraOccluders.push(object);
+  });
+  addWorldSign("GREEN FILTER / CLAW FROM BEHIND", 0, 3.1, -9, "#bde8ad");
+  resetBossPosition();
+  ui.transitionKicker.textContent = "Final encounter / nine lives";
+  ui.transitionTitle.textContent = "The Grand Suck";
+  ui.transitionCopy.textContent = "Circle behind the green filter and claw. Dodge the front suction cone. Pendants are lost on death.";
+  ui.transition.classList.remove("is-hidden");
+  transitionTimer = setTimeout(() => { ui.transition.classList.add("is-hidden"); state.transitioning = false; }, 2500);
+}
+
+function resetBossPosition() {
+  resetCombatInput();
+  state.toastTime = 0;
+  ui.toast.classList.remove("is-visible");
+  ui.prompt.textContent = "";
+  character.root.position.set(0, 0, 9.5);
+  character.checkpoint.copy(character.root.position);
+  character.verticalVelocity = 0;
+  character.currentPlatform = null;
+  state.grounded = true;
+  state.invulnerable = 2.5;
+  state.idleTime = 0;
+  state.satiety = Math.max(45, Math.min(75, state.satiety));
+  state.chonk = Math.min(72, state.chonk);
+  state.catnipTime = 0;
+  state.yaw = 0;
+  state.pitch = 0.24;
+  character.heading = Math.PI;
+  character.root.rotation.y = Math.PI;
+  cameraRig.distance = null;
+}
+
+function combatDeath(reason) {
+  if (state.invulnerable > 0 || state.transitioning || state.gameComplete) return;
+  const lost = progress.die();
+  if (adventure.boss) {
+    adventure.boss.loseLife();
+    state.bonks += 1;
+    resetBossPosition();
+    if (adventure.boss.status === "retry") {
+      state.bossRetry = true;
+      state.transitioning = true;
+      touchControls?.setPlaying(false);
+      ui.bossRetry.classList.remove("is-hidden");
+      document.exitPointerLock?.();
+      return;
+    }
+    showToast(`${reason}. ${adventure.boss.lives} lives left.${lost ? " Pendant lost." : ""} Boss damage is kept.`, 3.2);
+  } else {
+    respawnCharacter(reason);
+    resetCombatInput();
+    showToast(`${reason}. Back to your checkpoint.${lost ? " Pendant lost; collar kept." : ""}`, 3.2);
+  }
+}
+
+function restartBossFight() {
+  if (!adventure.boss || !state.bossRetry) return;
+  adventure.boss.reset();
+  state.bossRetry = false;
+  state.transitioning = false;
+  ui.bossRetry.classList.add("is-hidden");
+  resetBossPosition();
+  requestCameraControl();
+  showToast("Nine fresh lives. Collar kept. Circle, dodge, claw the rear.", 3.5);
+}
+
+function updateAdventure(delta, elapsed) {
+  const position = character.root.position;
+  const player = {
+    x: position.x, y: position.y, z: position.z, heading: character.heading, invulnerable: state.invulnerable > 0,
+    pull: (x, z) => {
+      if (canOccupy(position.x + x, position.z, position.y)) position.x += x;
+      if (canOccupy(position.x, position.z + z, position.y)) position.z += z;
+    },
+  };
+  const active = state.started && !state.transitioning && !state.gameComplete && !document.hidden && document.hasFocus();
+  if (active) {
+    state.attackCooldown = Math.max(0, state.attackCooldown - delta);
+    if (state.pendingAttack) {
+      state.pendingAttack.delay -= delta;
+      if (state.pendingAttack.delay <= 0) {
+        const kind = state.pendingAttack.kind;
+        state.pendingAttack = null;
+        adventure.attack(player, kind);
+      }
+    }
+  }
+  adventure.update(delta, elapsed, player, active);
+  if (active && adventure.boss) {
+    const geometry = adventure.boss.geometry(player);
+    ui.prompt.textContent = geometry.distance < 3.1
+      ? geometry.dot < adventure.boss.definition.rearDot ? "GREEN FILTER / FACE IT AND CLAW" : "ARMORED FRONT / CIRCLE BEHIND"
+      : "DODGE THE INTAKE / CLAW THE GREEN REAR";
+  } else if (active) {
+    const enemy = adventure.enemies.find((enemy) => enemy.active && Math.hypot(enemy.group.position.x - player.x, enemy.group.position.z - player.z) < 2.5);
+    if (enemy) ui.prompt.textContent = enemy.state === "warn" ? "MOUSE WINDING UP / CLAW OR DODGE" : "CLOCKWORK MOUSE / CLAW OR BITE FOR LOOT";
+  }
 }
 
 function requestCameraControl() {
@@ -1619,6 +1804,8 @@ function updateCamera(delta) {
 function updateCatVisual(delta) {
   if (!character.model || !character.mixer) return;
   character.mixer.update(delta);
+  if (character.collar) character.collar.visible = Boolean(progress.collar);
+  if (character.pendant) character.pendant.visible = Boolean(progress.charm);
 
   const chonkWidth = 1 + THREE.MathUtils.smoothstep(state.chonk, 62, 100) * 0.07;
   character.model.scale.set(CAT_SCALE * chonkWidth, CAT_SCALE, CAT_SCALE * chonkWidth);
@@ -1652,6 +1839,20 @@ function updateAtmosphere(delta, elapsed) {
 }
 
 function updateHud(speed) {
+  const equipment = progress.snapshot();
+  const equipmentText = `COLLAR ${equipment.collar ? `T${equipment.collar.tier} / +${equipment.collar.tier * 3}% PACE` : "NONE"} | PENDANT ${equipment.charm ? `T${equipment.charm.tier} / 2X CLAW` : "NONE"}`;
+  if (ui.equipment.textContent !== equipmentText) ui.equipment.textContent = equipmentText;
+  const boss = adventure.boss;
+  ui.bossPanel.hidden = !boss || state.gameComplete;
+  document.body.classList.toggle("boss-mode", state.stage === "boss");
+  if (boss) {
+    ui.bossName.textContent = boss.definition.name;
+    ui.bossHealth.style.width = `${boss.health / boss.definition.maxHealth * 100}%`;
+    ui.bossHealth.parentElement.setAttribute("aria-valuenow", String(boss.health));
+    ui.bossHealth.parentElement.setAttribute("aria-valuemax", String(boss.definition.maxHealth));
+    ui.bossLives.textContent = `${boss.lives} / ${boss.definition.maxLives} LIVES`;
+    ui.bossPhase.textContent = boss.status === "retry" ? "NINE LIVES SPENT / RETRY THE FIGHT" : boss.phase.label;
+  }
   ui.satiety.textContent = Math.round(state.satiety);
   ui.satietyFill.style.width = `${state.satiety}%`;
   ui.chonk.textContent = Math.round(state.chonk);
@@ -1689,6 +1890,10 @@ function updateHud(speed) {
   const left = remaining.length;
   const upstairs = remaining.some((food) => food.baseY > 2);
   ui.objective.textContent = left ? `Find supper · ${left} scents${upstairs ? " / check upstairs" : " remain"}` : "Reach the glowing pet door";
+  if (state.stage === "boss") {
+    ui.levelName.textContent = "FINAL ENCOUNTER";
+    ui.objective.textContent = "Circle behind / claw the green filter";
+  }
   ui.levelProgress.textContent = `LEVEL ${state.level + 1} OF ${LEVELS.length} · XP ${state.xp}`;
 }
 
@@ -1722,6 +1927,7 @@ function animate() {
     updateCheckpoints(elapsed);
     updateGoal(delta, elapsed);
   }
+  updateAdventure(delta, elapsed);
   updateCamera(delta);
   updateCatVisual(delta);
   updateAtmosphere(delta, elapsed);
@@ -1764,6 +1970,7 @@ function setupInput() {
   addEventListener("keyup", (event) => keys.delete(event.code));
   addEventListener("blur", () => {
     keys.clear();
+    state.pendingAttack = null;
     mouseLook.setLocked(false);
   });
   const syncMouseLook = () => mouseLook.setLocked(!touchControls.enabled && document.pointerLockElement === canvas && document.hasFocus() && !document.hidden);
@@ -1822,6 +2029,7 @@ async function init() {
     showLevelCard(LEVELS[0], 0);
   }, { once: true });
   ui.restart.addEventListener("click", restartRun);
+  ui.retryBoss.addEventListener("click", restartBossFight);
   renderer.setAnimationLoop(animate);
 }
 
@@ -1830,6 +2038,27 @@ window.__megaChonk = {
   state,
   character,
   touchSnapshot: () => touchControls.snapshot(),
+  adventureSnapshot: () => adventure.snapshot(),
+  startBoss: startBossFight,
+  bossScenario: ({ phase = "recover", yaw = 0, health = 8, lives = 9 } = {}) => {
+    if (!adventure.boss) startBossFight();
+    clearTimeout(transitionTimer);
+    state.transitioning = false;
+    state.bossRetry = false;
+    ui.transition.classList.add("is-hidden");
+    ui.bossRetry.classList.add("is-hidden");
+    resetCombatInput();
+    const boss = adventure.boss;
+    boss.phaseIndex = Math.max(0, boss.definition.phases.findIndex((candidate) => candidate.id === phase));
+    boss.time = 0;
+    boss.yaw = yaw;
+    boss.health = THREE.MathUtils.clamp(health, 1, boss.definition.maxHealth);
+    boss.lives = THREE.MathUtils.clamp(lives, 1, boss.definition.maxLives);
+    boss.status = "active";
+    boss.exposure = 0;
+    boss.hitCooldown = 0;
+    return boss.snapshot();
+  },
   cameraSnapshot: () => ({
     position: camera.position.toArray(),
     target: temp.cameraTarget.toArray(),
@@ -1877,6 +2106,8 @@ window.__megaChonk = {
     level: state.level,
     transitioning: state.transitioning,
     gameComplete: state.gameComplete,
+    stage: state.stage,
+    adventure: adventure.snapshot(),
     grounded: state.grounded,
     bonks: state.bonks,
     jumps: state.jumps,
@@ -1929,6 +2160,8 @@ window.__megaChonk = {
     chonk: state.chonk,
     eaten: state.eaten,
     coat: state.coat,
+    stage: state.stage,
+    adventure: adventure.snapshot(),
     triangles: character.triangleCount,
     visualMode: character.visualMode,
     modelName: character.model?.name ?? null,

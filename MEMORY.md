@@ -1,18 +1,19 @@
 # Mega Chonk Project Memory
 
-Last updated: 2026-10-16 (Asia/Singapore).
-Baseline inspected for the latest mobile-controls update: `a7a626d` on `main`.
+Last updated: 2026-10-17 (Asia/Singapore).
+Baseline inspected for the latest adventure update: `3c9260e` on `main`.
 Read current Git history before relying on that baseline; this file is not a live
 deployment status feed.
 
 ## Resume Here
 
-- Latest implemented request: phone virtual controls. `touch-controls.js` adds an analog joystick, right-side camera dragging, Jump/Sit/Claw/Bite buttons, a Trot toggle, touch detection/manual mode switching, and multi-pointer/lifecycle cleanup. Desktop controls remain supported.
-- HUD/boot layouts now fit portrait and landscape phones, pointer lock is not needed on touch, and rendering pixel ratio is capped at 1.25 on touch/coarse-pointer devices. The cat asset and gameplay condition/jump rules were not replaced or simplified.
-- Mobile emulation, desktop smoke/camera, vertical challenges, full autoplay seed `424242`, and local Pages packaging were checked. Details and physical-device follow-up: [mobile verification](docs/mobile-controls-verification.md).
-- Full autoplay after shared-input integration completed with 12 meals, 600 XP, seven jumps, zero bumps, about 2m 32s. It used keyboard navigation, not touch-only autoplay. Isolated mobile tests verify touch actions and common physics separately.
-- Released the entire mobile contribution as `39d9265` on 2026-10-16 after the user authorized the push. The Pages workflow succeeded, the live manifest matched that revision, and hosted mobile, camera, and Pages tests all passed without browser errors. This handoff update adds the release evidence and refreshed live captures, not runtime changes. Physical Android/iPhone Safari checks remain outstanding; do not claim hardware performance from emulation.
-- The previous mouse-spike/collision-recovery fix is `cecfb02` and was tested locally/live. Artist instructions were subsequently checked in as `a7a626d`; the active model/pipeline remains unchanged.
+- Latest request: fair generated jump obstacles, a reusable vacuum boss after room three, persistent accessories, and enemies with guaranteed drops. The local adventure implementation is described in [adventure system](docs/adventure-system.md).
+- The third pet door now starts the vacuum encounter instead of completing the run. Claw the rear filter; front suction costs one of nine lives. Retry after nine losses resets only the fight. The boss remains winnable without equipment.
+- Room-tier collars add pace and survive combat deaths; pendants add claw damage/hunger efficiency and are lost on combat death. Both persist across rooms for the current run. Optional clockwork mice warn/pounce and drop a snack or pendant on defeat. Ordinary environmental bumps remain nonlethal.
+- Shared jump rules validate generated hurdles/bridge approaches and reserve takeoff/landing space. Clear objective corridors and stairs remain available to hungry/heavy cats; equipment does not bypass their jump restrictions.
+- The user authorized pushing all adventure changes on 2026-10-17. Release is in progress; verify the Pages workflow, public manifest, and relevant hosted behavior before recording it as released. Verification results and limitations are in [adventure verification](docs/adventure-verification.md). The active cat asset is unchanged; desktop/touch controls remain supported.
+- Adventure rules/integration, 90 generated layouts, smoke/camera, vertical/visual, expanded phone controls, and local Pages checks passed. Full campaign seeds `424242` and `765432` both finished with 12 meals, 850 XP, no deaths, and the boss defeated; a separate keyboard fight also won without any equipment. Scenario setup is explicitly distinguished from no-teleport autoplay in the verification notes.
+- The previous mobile release is `39d9265` with evidence-only follow-up `3c9260e`; both deployed successfully. The mouse-spike fix is `cecfb02`. Physical Android/iPhone Safari checks remain outstanding; do not claim hardware performance from emulation.
 - Multiplayer and extra coat variants are still deferred, not approved next tasks. Wait for user feedback or a new request rather than implementing them automatically.
 
 ## Product Decisions
@@ -21,11 +22,12 @@ deployment status feed.
 - Visual direction: a believable Turkish Van, mostly white with chestnut ears/tail/patches, smooth animated limbs, subtle idle life, and large dark night-adapted pupils. Stray is a quality/control reference, not an asset source.
 - The user rejected boxy cats and rigid frame-by-frame sprites. The active character is a real skinned GLB rendered in Three.js. More polygons alone are not the solution to anatomy, clipping, or animation problems.
 - The setting is a house with furniture and vertical exploration, not a dungeon. There are three rooms: Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run.
-- Eat every required bowl, then reach the pet door. Room meal counts are 3/4/5: 12 total, with one upstairs in each room. A normal completed run earns 600 XP.
+- Eat every required bowl, then reach the pet door. Room meal counts are 3/4/5: 12 total, with one upstairs in each room. The third door leads to the vacuum boss. Base completion earns 850 XP including the boss's 250 XP, before optional bonuses.
 - Eating restores satiety rapidly and adds chonk. Movement drains satiety/weight slowly; balanced condition is fastest. Satiety at or below 8 or chonk at or above 90 blocks jumping.
 - WASD/arrows move relative to the camera; W moves away from it, showing the cat's back. Shift trots, Space jumps, Q sits, F/LMB claws, E/RMB bites. Five idle seconds trigger grooming; movement interrupts it and automatic eating immediately.
 - Touch uses a left analog joystick, right-side swipe to look, action buttons, and a latched Trot toggle. Use Trot + Jump for longer jumps. Do not require pointer lock or synthesize sticky WASD keys for touch input.
-- Claw and bite are available animation actions. Do not assume a finished combat/RPG system exists.
+- Claw and bite damage clockwork mice at animation impact time. Only rear-facing claws damage the vacuum. This is a basic combat/equipment foundation, not a finished RPG, networking, or inventory-menu system.
+- Equipment is run-scoped in memory, not saved across reloads. Combat death loses the pendant, not the collar. Nine suction losses require a boss retry; ordinary room hazards do not spend boss lives.
 
 ## Current Technical State
 
@@ -35,6 +37,9 @@ deployment status feed.
 | Gameplay | `game.js`: world construction, collisions, support surfaces, condition, progression, animation, UI |
 | Camera | `camera-controls.js`: filtered input consumed per frame; `game.js`: follow camera and collision recovery |
 | Touch | `touch-controls.js`: pointer capture, analog movement, look smoothing, buttons, mode/lifecycle state; `window.__megaChonk.touchSnapshot()` is a test/debug hook |
+| Adventure rules | `adventure-rules.js`: run equipment/ownership, boss phase/attack/weak-point registries, health/lives/retry |
+| Adventure visuals/AI | `adventure-world.js`: original procedural vacuum, optional clockwork mice, pickups, loot and animation-impact interactions |
+| Jump planning | `jump-rules.js`: runtime pace/impulse and conservative generation envelope (38 satiety, 75 chonk, no equipment/catnip) |
 | Generation | `course-generator.js`: seeded layouts, grid routes, reserved corridors and swept obstacle envelopes |
 | Character | `turkish-van-game-cat.glb`: 193,136 triangles, 24 skinned meshes, one armature |
 | Animation clips | Idle, Walk, Groom, Sit, Jump, Claw, Bite |
@@ -73,6 +78,8 @@ fully random building generator. Floors and collision bounds are world-space.
 | `ee37670` | Repository contributor instructions, persistent memory, setup/test/release handoff |
 | `a7a626d` | Artist instructions covering manual/source ownership, rig/material/export constraints, and delivery |
 | `39d9265` | Mobile joystick/look/actions, responsive phone layouts, lifecycle cleanup, automated touch verification; deployed and tested live |
+| `3c9260e` | Successful live mobile/camera/Pages verification evidence and refreshed captures; same runtime as `39d9265` |
+| Local, uncommitted | Vacuum finale, equipment/death/loot, clockwork enemies, shared fair-jump planning, combat tests and contributor guidance |
 
 Mouse regression details: old code directly applied every `movementX/Y` event;
 an oversized sample rotated yaw by -28.2 radians. A small furniture-corner orbit
@@ -88,7 +95,8 @@ interrupting food/grooming, and destination-floor planning in the autoplay bot.
 ## Recorded Verification
 
 The table below records earlier implementation sessions. Current mobile-input
-checks and the latest autoplay are in [mobile verification](docs/mobile-controls-verification.md).
+checks are in [mobile verification](docs/mobile-controls-verification.md); latest
+adventure checks/autoplay are in [adventure verification](docs/adventure-verification.md).
 Re-run relevant tests after changing behavior; do not treat historical results as
 evidence for an untested checkout.
 
@@ -123,8 +131,8 @@ those are not the current runtime specification.
 - `python tools/build_pages.py` follows actual module imports and packages only runtime assets/licenses into ignored `dist/`, with revision/hash metadata.
 - Do not upload the whole repo as the website: Blender/FBX/STL, experiments, sprite sheets, and test captures are not required at runtime.
 - CI checks module syntax and builds/deploys; it does not run the Playwright regression suite. Confirm the workflow and live build manifest when verifying a release.
-- Runtime revision `39d9265cb67a4a3453ee00f544b922a523910f09` was tested live on 2026-10-16. [Pages workflow 38854321559](https://github.com/desmondttm123/MegaChonk/actions/runs/38854321559) succeeded; the served manifest matched. Hosted mobile, camera, and Pages suites passed. Later evidence-only commits do not change that tested runtime; inspect the current manifest/history for the latest deployed commit.
-- The latest local build after adding touch controls contains 27 runtime files, approximately 12.47 MB; no model regeneration was needed. CI also checks the new touch module's syntax.
+- Runtime revision `39d9265cb67a4a3453ee00f544b922a523910f09` passed hosted mobile/camera/Pages checks on 2026-10-16. The evidence-only follow-up `3c9260e62025a55bf204a28bf35843ff7e12ced8` also deployed successfully, with the public manifest and unchanged runtime hashes checked. [Final release workflow](https://github.com/desmondttm123/MegaChonk/actions/runs/38854555719).
+- That mobile deployment has 27 runtime files, approximately 12.47 MB. The verified local adventure package has 30 runtime files, approximately 12.51 MB. No model regeneration was needed. CI now includes adventure module syntax and pure rules tests, but not browser autoplay. This does not mean the new CI workflow has run on GitHub yet.
 
 ## Deferred Or Limited
 
@@ -132,7 +140,7 @@ those are not the current runtime specification.
 - Tuxedo, calico, and orange-tabby options were requested earlier, then superseded by using only the Turkish Van to save resources. No coat selector is currently shipped.
 - Phone controls are implemented and tested with browser-dispatched multi-touch in Windows Edge/Chromium emulation. Actual Android/iOS hardware and Safari behavior/performance still require manual verification; desktop browser test launchers still assume Windows Edge.
 - The game remains a stylized prototype, not production AAA quality. Continue improving anatomy/animation and environment quality only against a concrete request.
-- The mobile contribution is released; no further feature or bug implementation is currently approved. Physical-phone feedback is the next handoff consideration.
+- The adventure contribution's release is authorized and in progress. New bosses, more levels, saved inventories, and additional enemy types are not automatically approved next tasks. Physical-phone playtesting and user feedback remain useful follow-up.
 
 ## Updating This Handoff
 
