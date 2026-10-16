@@ -1,29 +1,30 @@
 # Mega Chonk Project Memory
 
 Last updated: 2026-10-16 (Asia/Singapore).
-Baseline inspected for the latest artist-documentation update: `ee37670` on `main`.
+Baseline inspected for the latest mobile-controls update: `a7a626d` on `main`.
 Read current Git history before relying on that baseline; this file is not a live
 deployment status feed.
 
 ## Resume Here
 
-- The latest gameplay request was to fix violent camera movement from slight mouse input. The fix is committed as `cecfb02`, deployed, and was checked with the live camera and Pages tests in the preceding work session.
-- A subsequent check-in, `ef96e40`, added previously local model experiments and inspection assets. It did not replace the active runtime cat or change gameplay code.
-- Contributor handoff files were checked in as `ee37670` ("Added Agents and memory").
-- Latest completed request: add instructions so artists can improve/render a better cat. `docs/artist-cat-guide.md` now covers the active source, rig-preserving work versus replacements, materials/fur, seven actions, candidate GLB export, validation, licensing, and delivery/source ownership.
-- The active `.blend` was inspected read-only in a separate background Blender process to verify names, dimensions, axes, actions, and muted NLA-track setup. All 22 local Markdown links across the six affected documents passed validation, along with whitespace checks. No model, animation, or runtime file was changed. Gameplay tests were not rerun for this documentation-only task; no commit/push/deployment was performed for it.
-- There is no unfinished implementation currently in progress. Wait for the next requested improvement; multiplayer and extra coat variants are deferred, not approved next tasks.
-- Automated mouse tests passed, but the user has not yet reported how the latest fix feels on their own mouse/browser.
+- Latest implemented request: phone virtual controls. `touch-controls.js` adds an analog joystick, right-side camera dragging, Jump/Sit/Claw/Bite buttons, a Trot toggle, touch detection/manual mode switching, and multi-pointer/lifecycle cleanup. Desktop controls remain supported.
+- HUD/boot layouts now fit portrait and landscape phones, pointer lock is not needed on touch, and rendering pixel ratio is capped at 1.25 on touch/coarse-pointer devices. The cat asset and gameplay condition/jump rules were not replaced or simplified.
+- Mobile emulation, desktop smoke/camera, vertical challenges, full autoplay seed `424242`, and local Pages packaging were checked. Details and physical-device follow-up: [mobile verification](docs/mobile-controls-verification.md).
+- Full autoplay after shared-input integration completed with 12 meals, 600 XP, seven jumps, zero bumps, about 2m 32s. It used keyboard navigation, not touch-only autoplay. Isolated mobile tests verify touch actions and common physics separately.
+- The user authorized committing and pushing the entire mobile contribution on 2026-10-16. Release is in progress: verify the Pages deployment and live mobile/package tests before recording it as released. Physical Android/iPhone Safari checks remain outstanding; do not claim hardware performance from emulation.
+- The previous mouse-spike/collision-recovery fix is `cecfb02` and was tested locally/live. Artist instructions were subsequently checked in as `a7a626d`; the active model/pipeline remains unchanged.
+- Multiplayer and extra coat variants are still deferred, not approved next tasks. Wait for user feedback or a new request rather than implementing them automatically.
 
 ## Product Decisions
 
-- Name: **Mega Chonk**. Desktop browser game, keyboard/mouse, single player.
+- Name: **Mega Chonk**. Single-player browser game with desktop keyboard/mouse and optional phone virtual controls.
 - Visual direction: a believable Turkish Van, mostly white with chestnut ears/tail/patches, smooth animated limbs, subtle idle life, and large dark night-adapted pupils. Stray is a quality/control reference, not an asset source.
 - The user rejected boxy cats and rigid frame-by-frame sprites. The active character is a real skinned GLB rendered in Three.js. More polygons alone are not the solution to anatomy, clipping, or animation problems.
 - The setting is a house with furniture and vertical exploration, not a dungeon. There are three rooms: Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run.
 - Eat every required bowl, then reach the pet door. Room meal counts are 3/4/5: 12 total, with one upstairs in each room. A normal completed run earns 600 XP.
 - Eating restores satiety rapidly and adds chonk. Movement drains satiety/weight slowly; balanced condition is fastest. Satiety at or below 8 or chonk at or above 90 blocks jumping.
 - WASD/arrows move relative to the camera; W moves away from it, showing the cat's back. Shift trots, Space jumps, Q sits, F/LMB claws, E/RMB bites. Five idle seconds trigger grooming; movement interrupts it and automatic eating immediately.
+- Touch uses a left analog joystick, right-side swipe to look, action buttons, and a latched Trot toggle. Use Trot + Jump for longer jumps. Do not require pointer lock or synthesize sticky WASD keys for touch input.
 - Claw and bite are available animation actions. Do not assume a finished combat/RPG system exists.
 
 ## Current Technical State
@@ -33,6 +34,7 @@ deployment status feed.
 | Stack | Buildless JavaScript modules, locally bundled Three.js, no runtime backend |
 | Gameplay | `game.js`: world construction, collisions, support surfaces, condition, progression, animation, UI |
 | Camera | `camera-controls.js`: filtered input consumed per frame; `game.js`: follow camera and collision recovery |
+| Touch | `touch-controls.js`: pointer capture, analog movement, look smoothing, buttons, mode/lifecycle state; `window.__megaChonk.touchSnapshot()` is a test/debug hook |
 | Generation | `course-generator.js`: seeded layouts, grid routes, reserved corridors and swept obstacle envelopes |
 | Character | `turkish-van-game-cat.glb`: 193,136 triangles, 24 skinned meshes, one armature |
 | Animation clips | Idle, Walk, Groom, Sit, Jump, Claw, Bite |
@@ -69,6 +71,7 @@ fully random building generator. Floors and collision bounds are world-space.
 | `cecfb02` | Mouse-spike filtering, frame-based smoothing/rate limits, capture/focus guards, camera collision recovery |
 | `ef96e40` | Check-in of older experimental assets/tools; active gameplay remains the above version |
 | `ee37670` | Repository contributor instructions, persistent memory, setup/test/release handoff |
+| `a7a626d` | Artist instructions covering manual/source ownership, rig/material/export constraints, and delivery |
 
 Mouse regression details: old code directly applied every `movementX/Y` event;
 an oversized sample rotated yaw by -28.2 radians. A small furniture-corner orbit
@@ -83,8 +86,10 @@ interrupting food/grooming, and destination-floor planning in the autoplay bot.
 
 ## Recorded Verification
 
-These are results from prior implementation sessions, not new browser runs for
-the documentation-only handoff. Re-run relevant tests after changing behavior.
+The table below records earlier implementation sessions. Current mobile-input
+checks and the latest autoplay are in [mobile verification](docs/mobile-controls-verification.md).
+Re-run relevant tests after changing behavior; do not treat historical results as
+evidence for an untested checkout.
 
 | Check | Last recorded result |
 | --- | --- |
@@ -118,14 +123,15 @@ those are not the current runtime specification.
 - Do not upload the whole repo as the website: Blender/FBX/STL, experiments, sprite sheets, and test captures are not required at runtime.
 - CI checks module syntax and builds/deploys; it does not run the Playwright regression suite. Confirm the workflow and live build manifest when verifying a release.
 - The last live revision personally tested in the preceding session was `cecfb02`. Do not assume that is the current live revision after subsequent pushes.
+- The latest local build after adding touch controls contains 27 runtime files, approximately 12.47 MB; no model regeneration was needed. CI also checks the new touch module's syntax.
 
 ## Deferred Or Limited
 
 - Multiplayer/two-browser interaction was discussed and explicitly postponed. No networking implementation exists.
 - Tuxedo, calico, and orange-tabby options were requested earlier, then superseded by using only the Turkish Van to save resources. No coat selector is currently shipped.
-- Mobile/touch controls are not implemented; browser tests currently assume Windows Microsoft Edge.
+- Phone controls are implemented and tested with browser-dispatched multi-touch in Windows Edge/Chromium emulation. Actual Android/iOS hardware and Safari behavior/performance still require manual verification; desktop browser test launchers still assume Windows Edge.
 - The game remains a stylized prototype, not production AAA quality. Continue improving anatomy/animation and environment quality only against a concrete request.
-- No further feature or bug implementation is currently approved. The next useful input is user feedback on the deployed camera feel or a new requested task.
+- The mobile contribution's release is authorized; no further feature or bug implementation is currently approved. After deployment verification, physical-phone feedback is the next handoff consideration.
 
 ## Updating This Handoff
 

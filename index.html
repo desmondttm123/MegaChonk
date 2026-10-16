@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#2b211a" />
     <title>Mega Chonk</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e6ad62' d='M6 13 4 3l8 6a13 13 0 0 1 8 0l8-6-2 10a12 12 0 1 1-20 0Z'/%3E%3C/svg%3E" />
@@ -17,7 +17,7 @@
     </script>
   </head>
   <body>
-    <canvas id="game" aria-label="Mega Chonk 3D game"></canvas>
+    <canvas id="game" tabindex="0" aria-label="Mega Chonk 3D game"></canvas>
     <div id="boot" class="boot-screen">
       <div class="boot-mark" aria-hidden="true"><span></span><span></span></div>
       <p class="eyebrow">Three rooms. Nine lives. One appetite.</p>
@@ -25,8 +25,25 @@
       <p class="boot-copy">Guide a Turkish Van. Explore upstairs. Find catnip. Rule the house.</p>
       <button id="enter-game" type="button" disabled>Enter the house</button>
       <p id="load-status" class="load-status">Preparing the house...</p>
+      <p id="input-hint" class="input-hint">WASD to move. Mouse to look. Space to jump.</p>
       <p class="boot-credits"><a href="./credits.html" target="_blank" rel="noopener">Credits &amp; licenses</a></p>
     </div>
+    <button id="touch-toggle" class="input-toggle" type="button" aria-pressed="false" aria-controls="touch-controls">Touch: off</button>
+    <section id="touch-controls" class="touch-controls" aria-label="Touch game controls" hidden>
+      <div id="move-stick" class="touch-stick" data-touch-stick role="group" aria-label="Movement joystick">
+        <span class="touch-stick-label">MOVE</span>
+        <span class="touch-stick-ring" aria-hidden="true"></span>
+        <span class="touch-stick-thumb" aria-hidden="true"></span>
+      </div>
+      <span class="touch-look-hint" aria-hidden="true">DRAG RIGHT SIDE TO LOOK</span>
+      <div class="touch-actions">
+        <button type="button" data-touch-action="sit" aria-label="Sit or stand">Sit</button>
+        <button type="button" data-touch-action="claw" aria-label="Claw">Claw</button>
+        <button type="button" data-touch-action="bite" aria-label="Bite">Bite</button>
+        <button type="button" data-touch-action="trot" aria-label="Toggle trot" aria-pressed="false">Trot</button>
+        <button type="button" data-touch-action="jump" class="touch-jump" aria-label="Jump">Jump</button>
+      </div>
+    </section>
     <div id="hud" class="hud is-hidden">
       <section class="status-panel" aria-label="Cat status">
         <div class="status-heading"><span>Condition</span><strong id="condition-value">READY</strong></div>

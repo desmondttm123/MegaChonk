@@ -44,6 +44,7 @@ A marked opening on the gallery faces a cushioned bonus perch across a `3.8`-uni
 - `F` or left mouse: claw
 - `E` or right mouse: bite
 - `Esc`: release the mouse
+- Phones: left analog joystick to move, right-side drag to look, Jump/Sit/Claw/Bite buttons, and a Trot toggle. No pointer lock is required; portrait and landscape are supported.
 
 ## Character
 

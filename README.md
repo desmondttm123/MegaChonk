@@ -6,7 +6,7 @@ Mega Chonk is a third-person 3D browser game about a Turkish Van balancing hunge
 
 **[Play Mega Chonk](https://desmondttm123.github.io/MegaChonk/)**
 
-Open the link in a modern desktop browser with WebGL 2 enabled. No installation, Blender, Python, or GitHub account is required to play. Click **Enter the house** to capture the mouse; press `Esc` to release it. The first load downloads a roughly 10 MB cat model. Keyboard and mouse are required; touch controls are not implemented.
+Open the link in a modern browser with WebGL 2 enabled. No installation, Blender, Python, or GitHub account is required to play. On desktop, click **Enter the house** to capture the mouse; press `Esc` to release it. On a phone, touch controls enable automatically without pointer lock. The first load downloads a roughly 10 MB cat model; performance depends on the device.
 
 ![The Turkish Van cat](assets/models/game-cat-previews/game-cat.png)
 
@@ -50,6 +50,17 @@ The build preserves relative URLs so modules and models work under `/MegaChonk/`
 
 Mouse look uses filtered relative input, frame-independent smoothing, and bounded turn speed. Cursor-warp samples on capture/focus changes are discarded; leaving the game window clears queued motion. The camera eases outward after clearing furniture rather than snapping to full follow distance.
 
+## Phone Controls
+
+- Drag the left joystick to move; small deflections walk slowly, full deflection walks at normal speed.
+- Swipe an unobstructed area on the right side to orbit the camera. Movement, looking, and action buttons support simultaneous touches.
+- Tap **Jump**, **Sit**, **Claw**, or **Bite** for the corresponding action.
+- Tap **Trot** to toggle faster movement; combine it with **Jump** for distance. Catnip still boosts speed/leap, and hunger/weight restrictions still apply.
+- Release the joystick beside a bowl to eat automatically. Moving interrupts eating and grooming.
+- Use **Touch: on/off** to show or hide the virtual controls, including on a touch-enabled laptop or desktop.
+
+Portrait and landscape layouts are supported, with safe-area spacing for phone edges. Landscape gives a wider view. Interrupted touches, screen resizing, app switching, and level transitions clear held input. Touch/coarse-pointer rendering caps pixel ratio at 1.25 to reduce GPU load without replacing the detailed cat mesh. Automated checks emulate phones in Chromium; physical Android/iOS device performance and Safari behavior still need hands-on verification.
+
 ## Core Loop
 
 Find every bowl in a room, then reach the glowing pet door. Complete Living Room Zoomies, Kitchen Counter Caper, and Attic Midnight Run to finish a run.
@@ -62,7 +73,7 @@ Find every bowl in a room, then reach the glowing pet door. Complete Living Room
 - A starving cat cannot leap, while a cat at maximum chonk must exercise before jumping again.
 - Extra weight progressively shortens jumps without making a normal run unwinnable.
 - Every room has an oak staircase and an upstairs gallery at 2.7 game units, with one required meal upstairs. Walk onto the stairs; repeated jumping is not needed.
-- The green catnip bowl upstairs grants 18 seconds of +32% speed and +18% jump impulse. Use `Shift` + `Space` from the marked balcony opening to reach the bonus perch, then descend the shelves.
+- The green catnip bowl upstairs grants 18 seconds of +32% speed and +18% jump impulse. Use `Shift` + `Space` (or **Trot** + **Jump** on touch) from the marked balcony opening to reach the bonus perch, then descend the shelves.
 - Catnip returns after 22 seconds. It has no chonk cost and does not bypass starving/heavy jump restrictions. Catnip and the bonus treat are optional, not requirements for opening the pet door.
 - After five seconds without input, the cat transitions into its grooming animation.
 - Sofas, counters, storage boxes, cushions, spills, robot vacuums, raised ottomans, moving footstools, and cat-bed checkpoints form the obstacle courses.
@@ -102,6 +113,8 @@ This runs in a separate process and does not alter an open Blender scene.
 `tools/generation-test.js` checks 90 seeded layouts across all three rooms for reproducibility, obstacle counts, overlapping obstacles, protected corridors, and routes through the actual collision/hazard geometry to every ground-floor objective and the stairs.
 
 `tools/camera-controls-test.js [URL]` checks small/native mouse movements, invalid deltas, event bursts, focus recovery, repeated pointer-lock capture/release, 30/60/144 FPS input consistency, and camera recovery at a furniture corner. Omit the URL for the local game or pass the live URL to verify deployment.
+
+`tools/mobile-controls-test.js [URL]` uses browser-dispatched multi-touch input to test analog movement, camera drag, all action buttons, eating/grooming interruption, cancellation, rotation, focus loss, restart, and switching back to desktop input. It checks boot/game layouts at 390x844, 844x390, 320x568, and 568x320, and fails if mobile requests pointer lock.
 
 `tools/vertical-challenges-test.js` walks up and down stairs in all three rooms, compares normal and catnip-assisted long jumps, checks boost expiry and hunger/weight limits, and tests the gallery underside collision.
 

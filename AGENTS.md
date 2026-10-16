@@ -26,6 +26,7 @@ agents and human contributors, not a running service or autonomous background jo
 | --- | --- |
 | Gameplay, physics, world, animation playback, HUD | `game.js` |
 | Mouse input filtering and angular smoothing | `camera-controls.js` |
+| Virtual joystick, touch gestures, action buttons, lifecycle cleanup | `touch-controls.js` |
 | Seeded obstacle placement and protected routes | `course-generator.js` |
 | Page shell and styling | `index.html`, `styles.css` |
 | Active cat asset pipeline | `tools/generate_stray_style_cat.py` |
@@ -45,6 +46,7 @@ agents and human contributors, not a running service or autonomous background jo
 - Keep vertex colors on the POINT domain in the Blender 3.4 cat exporter; earlier CORNER-domain exports scrambled coat colors.
 - Scale collision dimensions, camera framing, and related props with character/world changes. Scaling a Three.js group alone does not update world-space collider records.
 - Do not apply raw mouse deltas directly to yaw/pitch. Preserve capture/focus guards, finite-value checks, rate limits, queue clearing, and camera collision recovery.
+- Preserve multi-pointer touch input, analog joystick strength/dead zone, action-button isolation, and reset on cancellation/focus loss/rotation/transitions. Touch play must not require pointer lock; keep desktop input working and test portrait/landscape layouts.
 - Keep render geometry, collision, support surfaces, and moving-platform ownership aligned. Preserve capsule depenetration and gallery underside collision fixes.
 - Keep generated obstacles outside protected routes and full moving-hazard envelopes. Do not make optional snacks a requirement for opening a pet door.
 - Never publish credentials or store tokens in handoff notes. Git pushes and deployment/settings changes require the user's authorization; these files do not grant it.

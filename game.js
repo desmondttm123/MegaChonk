@@ -7,12 +7,15 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { footprint, generateCourse } from "./course-generator.js";
 import { MouseLookController } from "./camera-controls.js";
+import { TouchControls } from "./touch-controls.js";
 
 const CAT_SCALE = 0.84;
 const CAT_BODY_HEIGHT = 0.76;
 const FOOD_SCALE = 0.70;
 const HOUSE = { width: 46, depth: 42, height: 7.2 };
 const WORLD_BOUNDS = { minX: -21.5, maxX: 21.5, minZ: -19.3, maxZ: 19.3 };
+const COARSE_POINTER = matchMedia("(pointer: coarse)").matches;
+let touchControls = null;
 
 const canvas = document.querySelector("#game");
 const ui = {
@@ -49,7 +52,7 @@ scene.fog = new THREE.FogExp2(0x34271f, 0.018);
 
 const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.05, 140);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+renderer.setPixelRatio(Math.min(devicePixelRatio, COARSE_POINTER ? 1.25 : 1.8));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -710,7 +713,7 @@ function buildVerticalRoute(definition) {
     addBox("ShelfSupport", new THREE.Vector3(x, (top - 0.18) / 2, z), new THREE.Vector3(0.16, top - 0.18, 0.16), materials.wood, { collider: true, radius: 0.02 });
   }
   addWorldSign("UPSTAIRS / OAK STAIRS", stairX, 1.15, 0.60);
-  addWorldSign("CATNIP / SHIFT + SPACE", 4.5, height + 1.15, -8.9, "#bde8ad");
+  addWorldSign("CATNIP / TROT + LEAP", 4.5, height + 1.15, -8.9, "#bde8ad");
   addWorldSign("BONUS PERCH", 4.5, height + 0.90, -2.9);
   createFood(4.5, -9.0, "CATNIP", height, { required: false, boost: true });
   createFood(4.5, -2.9, "TREAT", height, { required: false, xp: 50 });
@@ -1249,8 +1252,8 @@ function updateVertical(delta) {
 }
 
 function moveCharacter(delta) {
-  const inputX = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
-  const inputZ = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
+  const inputX = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0) + (touchControls?.x ?? 0);
+  const inputZ = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0) + (touchControls?.z ?? 0);
   const hasInput = inputX !== 0 || inputZ !== 0;
   if (hasInput && eatingTarget) {
     eatingTarget.group.scale.setScalar(FOOD_SCALE);
@@ -1272,10 +1275,10 @@ function moveCharacter(delta) {
   temp.desired.set(0, 0, 0);
   const movementLocked = state.sitting || state.transitioning || state.gameComplete || (state.forcedAction && state.forcedAction !== "Jump");
   if (hasInput && !movementLocked) {
-    temp.desired.addScaledVector(temp.forward, inputZ).addScaledVector(temp.right, inputX).normalize();
+    temp.desired.addScaledVector(temp.forward, inputZ).addScaledVector(temp.right, inputX).clampLength(0, 1);
   }
 
-  const trotting = keys.has("ShiftLeft") || keys.has("ShiftRight");
+  const trotting = keys.has("ShiftLeft") || keys.has("ShiftRight") || touchControls?.trotting;
   const maxSpeed = (trotting ? 4.95 : 3.15) * speedMultiplier(state.satiety, state.chonk) * (state.catnipTime > 0 ? CATNIP_SPEED : 1);
   temp.targetVelocity.copy(temp.desired).multiplyScalar(maxSpeed);
   const response = hasInput ? 7.2 : 10.5;
@@ -1350,7 +1353,7 @@ function updateFood(delta, speed) {
 
   ui.prompt.textContent = nearest && nearestDistance < 2.1 ? `${nearest.label}  ·  MOVE CLOSER` : "";
   const wrongHeight = nearest && Math.abs(nearest.baseY - character.root.position.y) > 0.34;
-  const movementRequested = MOVEMENT_KEYS.some((key) => keys.has(key));
+  const movementRequested = MOVEMENT_KEYS.some((key) => keys.has(key)) || Math.hypot(touchControls?.x ?? 0, touchControls?.z ?? 0) > 0;
   if (!nearest || nearestDistance > 0.88 || wrongHeight || speed > 0.7 || !state.grounded || movementRequested) {
     if (eatingTarget?.active) eatingTarget.group.scale.setScalar(FOOD_SCALE);
     state.eatingTime = 0;
@@ -1382,7 +1385,8 @@ function updateFood(delta, speed) {
     if (nearest.boost) {
       state.catnipTime = CATNIP_DURATION;
       nearest.cooldown = CATNIP_DURATION + 4;
-      showToast("Catnip zoomies! +32% speed / +18% leap. Shift + Space for the long jump.", 5);
+      const leapControls = touchControls?.enabled ? "Trot + Jump" : "Shift + Space";
+      showToast(`Catnip zoomies! +32% speed / +18% leap. ${leapControls} for the long jump.`, 5);
     } else {
       showToast(`${nearest.label.toLowerCase()} secured · +${nearest.xp} XP`, 2.8);
     }
@@ -1566,7 +1570,17 @@ function restartRun() {
   ui.hud.classList.remove("is-hidden");
   buildLevel(0, false);
   showLevelCard(LEVELS[0], 0);
-  canvas.requestPointerLock?.();
+  requestCameraControl();
+}
+
+function requestCameraControl() {
+  if (touchControls?.enabled || COARSE_POINTER) return;
+  const unavailable = () => { if (!touchControls?.enabled) ui.prompt.textContent = "CLICK TO RESUME CAMERA"; };
+  try {
+    canvas.requestPointerLock?.()?.catch?.(unavailable);
+  } catch {
+    unavailable();
+  }
 }
 
 function updateCamera(delta) {
@@ -1693,9 +1707,11 @@ function updateToast(delta) {
 function animate() {
   const delta = Math.min(clock.getDelta(), 0.033);
   const elapsed = clock.elapsedTime;
+  touchControls?.setPlaying(state.started && !state.transitioning && !state.gameComplete);
   const look = mouseLook.consume(delta);
-  state.yaw += look.yaw;
-  state.pitch = THREE.MathUtils.clamp(state.pitch + look.pitch, 0.08, 0.62);
+  const touchLook = touchControls?.consumeLook(delta) ?? { yaw: 0, pitch: 0 };
+  state.yaw += look.yaw + touchLook.yaw;
+  state.pitch = THREE.MathUtils.clamp(state.pitch + look.pitch + touchLook.pitch, 0.08, 0.62);
   let speed = 0;
   updateMovingPlatforms(elapsed);
   if (state.started) {
@@ -1715,6 +1731,26 @@ function animate() {
 }
 
 function setupInput() {
+  touchControls = new TouchControls({
+    canvas,
+    root: document.querySelector("#touch-controls"),
+    toggle: document.querySelector("#touch-toggle"),
+    onAction: (action) => {
+      if (action === "jump") requestJump();
+      if (action === "sit") toggleSit();
+      if (action === "claw") triggerAction("Claw", 0.85);
+      if (action === "bite") triggerAction("Bite", 0.72);
+    },
+    onModeChange: (enabled) => {
+      keys.clear();
+      mouseLook.setLocked(false);
+      if (enabled && document.pointerLockElement) document.exitPointerLock?.();
+      document.querySelector("#input-hint").textContent = enabled
+        ? "Left stick moves. Swipe right side to look. Tap Trot for longer jumps."
+        : "WASD to move. Mouse to look. Space to jump.";
+      resize();
+    },
+  });
   addEventListener("keydown", (event) => {
     keys.add(event.code);
     if (state.started && !event.repeat) {
@@ -1730,7 +1766,7 @@ function setupInput() {
     keys.clear();
     mouseLook.setLocked(false);
   });
-  const syncMouseLook = () => mouseLook.setLocked(document.pointerLockElement === canvas && document.hasFocus() && !document.hidden);
+  const syncMouseLook = () => mouseLook.setLocked(!touchControls.enabled && document.pointerLockElement === canvas && document.hasFocus() && !document.hidden);
   addEventListener("focus", syncMouseLook);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) keys.clear();
@@ -1740,17 +1776,17 @@ function setupInput() {
   document.addEventListener("pointerlockchange", () => {
     state.pointerLocked = document.pointerLockElement === canvas;
     syncMouseLook();
-    if (state.started) ui.prompt.textContent = state.pointerLocked ? "" : "CLICK TO RESUME CAMERA";
+    if (state.started) ui.prompt.textContent = state.pointerLocked || touchControls.enabled ? "" : "CLICK TO RESUME CAMERA";
   });
   document.addEventListener("mousemove", (event) => {
-    if (!state.started || !state.pointerLocked) return;
+    if (!state.started || !state.pointerLocked || touchControls.enabled) return;
     mouseLook.addMovement(event.movementX, event.movementY);
   });
   canvas.addEventListener("click", () => {
-    if (state.started && document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
+    if (state.started && document.pointerLockElement !== canvas) requestCameraControl();
   });
   canvas.addEventListener("mousedown", (event) => {
-    if (!state.started || document.pointerLockElement !== canvas) return;
+    if (!state.started || document.pointerLockElement !== canvas || touchControls.enabled) return;
     if (event.button === 0) triggerAction("Claw", 0.85);
     if (event.button === 2) triggerAction("Bite", 0.72);
   });
@@ -1760,8 +1796,9 @@ function setupInput() {
 function resize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, touchControls?.enabled || COARSE_POINTER ? 1.25 : 1.8));
   renderer.setSize(innerWidth, innerHeight);
+  composer.setPixelRatio(renderer.getPixelRatio());
   composer.setSize(innerWidth, innerHeight);
 }
 
@@ -1781,7 +1818,7 @@ async function init() {
     state.runStartedAt = performance.now();
     ui.boot.classList.add("is-gone");
     ui.hud.classList.remove("is-hidden");
-    canvas.requestPointerLock?.();
+    requestCameraControl();
     showLevelCard(LEVELS[0], 0);
   }, { once: true });
   ui.restart.addEventListener("click", restartRun);
@@ -1792,6 +1829,7 @@ addEventListener("resize", resize);
 window.__megaChonk = {
   state,
   character,
+  touchSnapshot: () => touchControls.snapshot(),
   cameraSnapshot: () => ({
     position: camera.position.toArray(),
     target: temp.cameraTarget.toArray(),

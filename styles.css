@@ -16,6 +16,7 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  overscroll-behavior: none;
   background: #211812;
   color: var(--ink);
   font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
@@ -24,7 +25,7 @@ body {
 button,
 kbd { font: inherit; }
 
-#game { display: block; width: 100%; height: 100%; outline: none; }
+#game { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
 
 .boot-screen {
   position: fixed;
@@ -96,6 +97,7 @@ kbd { font: inherit; }
 .boot-screen h1 em { color: var(--amber); font-weight: 400; letter-spacing: .05em; }
 
 .boot-copy { position: relative; margin: 24px 0 20px; color: var(--muted); font-style: italic; }
+.input-hint { position: relative; max-width: 340px; margin: 0 12px; color: var(--muted); text-align: center; font: 11px/1.5 Georgia, serif; }
 
 #enter-game,
 #restart-game {
@@ -203,10 +205,114 @@ kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
 .cinematic-bars::after { bottom: 0; }
 .vignette { position: fixed; z-index: 3; inset: 0; pointer-events: none; background: radial-gradient(circle, transparent 48%, rgba(0,6,8,.3)); mix-blend-mode: multiply; }
 
+.input-toggle {
+  position: fixed;
+  z-index: 22;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: rgba(24, 17, 13, .85);
+  font: 10px/1 Georgia, serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.input-toggle[aria-pressed="true"] { border-color: rgba(230,173,98,.55); color: var(--amber); }
+.touch-controls { position: fixed; inset: 0; z-index: 8; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.touch-controls[hidden] { display: none; }
+.touch-stick,
+.touch-actions button { pointer-events: auto; touch-action: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.touch-stick {
+  --stick-x: 0px;
+  --stick-y: 0px;
+  position: absolute;
+  width: 128px;
+  height: 128px;
+  left: max(18px, calc(env(safe-area-inset-left) + 12px));
+  bottom: max(26px, calc(env(safe-area-inset-bottom) + 16px));
+  border: 1px solid rgba(230,173,98,.36);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(230,173,98,.10), rgba(24,17,13,.45) 70%);
+  box-shadow: inset 0 0 0 9px rgba(24,17,13,.18), 0 8px 30px rgba(0,0,0,.22);
+}
+.touch-stick-label { position: absolute; left: 0; right: 0; top: -22px; text-align: center; color: rgba(241,234,217,.8); font: 10px/1 Georgia, serif; letter-spacing: .18em; text-shadow: 0 1px 4px #000; }
+.touch-stick-ring { position: absolute; inset: 25%; border: 1px dashed rgba(230,173,98,.25); border-radius: 50%; }
+.touch-stick-thumb { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; transform: translate(-50%, -50%) translate(var(--stick-x), var(--stick-y)); border-radius: 50%; border: 1px solid rgba(230,173,98,.7); background: radial-gradient(circle at 35% 25%, rgba(241,215,167,.65), rgba(144,94,48,.65)); box-shadow: 0 5px 14px rgba(0,0,0,.3); pointer-events: none; }
+.touch-stick.is-held { border-color: var(--amber); }
+.touch-look-hint { position: absolute; right: max(22px, env(safe-area-inset-right)); top: 44%; max-width: 130px; text-align: right; color: rgba(241,234,217,.42); font: 9px/1.5 Georgia, serif; letter-spacing: .12em; text-shadow: 0 1px 4px #000; }
+.touch-actions { position: absolute; right: max(18px, calc(env(safe-area-inset-right) + 12px)); bottom: max(26px, calc(env(safe-area-inset-bottom) + 16px)); display: grid; grid-template-columns: repeat(3, 50px); gap: 8px; }
+.touch-actions button { min-width: 0; min-height: 50px; padding: 8px 3px; border: 1px solid rgba(231,213,177,.32); border-radius: 14px; color: var(--ink); background: linear-gradient(145deg, rgba(70,50,31,.78), rgba(24,17,13,.82)); font: 13px/1 Georgia, serif; box-shadow: 0 5px 18px rgba(0,0,0,.24); }
+.touch-actions .touch-jump { grid-column: span 2; min-height: 60px; border-color: var(--amber); background: linear-gradient(145deg, rgba(185,119,54,.85), rgba(89,54,26,.85)); font-size: 17px; letter-spacing: .05em; }
+.touch-actions button.is-held,
+.touch-actions button[aria-pressed="true"] { background: rgba(197,140,72,.92); color: #211812; border-color: #f1d7a7; }
+.touch-mode .controls-card,
+.touch-mode .reticle { display: none; }
+.touch-mode.touch-playing .input-toggle { left: max(18px, calc(env(safe-area-inset-left) + 12px)); bottom: max(186px, calc(env(safe-area-inset-bottom) + 176px)); transform: none; min-height: 36px; }
+.touch-mode .status-panel { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); width: min(42vw, 250px); padding: 10px; }
+.touch-mode .status-heading { margin-bottom: 6px; font-size: 12px; }
+.touch-mode .status-footer { margin-top: 7px; }
+.touch-mode #pace-value { display: none; }
+.touch-mode .objective-panel { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); bottom: auto; min-width: 0; width: min(44vw, 270px); padding: 10px; gap: 7px; }
+.touch-mode .objective-index { font-size: 20px; }
+.touch-mode .objective-panel strong { font-size: 12px; }
+.touch-mode .objective-label { line-height: 1.35; font-size: 7px; letter-spacing: .08em; }
+.touch-mode .objective-panel small { font-size: 7px; line-height: 1.4; }
+.touch-mode .ability-panel { display: grid; top: max(136px, calc(env(safe-area-inset-top) + 128px)); left: 50%; right: auto; bottom: auto; transform: translateX(-50%); max-width: 260px; padding: 6px 9px; justify-items: center; font-size: 8px; }
+.touch-mode .ability-panel > strong,
+.touch-mode .ability-panel > span:last-child { display: none; }
+.touch-mode .ability-panel .boost-status { max-width: 230px; font-size: 8px; padding: 4px 6px; }
+.touch-mode .prompt { bottom: max(190px, calc(env(safe-area-inset-bottom) + 180px)); max-width: 80vw; font-size: 12px; }
+.touch-mode .toast { bottom: max(224px, calc(env(safe-area-inset-bottom) + 214px)); padding: 7px 10px; font-size: 12px; }
+.touch-mode .level-transition { padding: 20px; }
+.touch-mode .level-transition h2 { font-size: clamp(30px, 6vw, 60px); }
+.touch-mode .level-transition p { max-width: 500px; font-size: 13px; line-height: 1.5; }
+
 @media (max-width: 760px) {
-  .objective-panel { top: auto; right: 14px; bottom: 14px; min-width: 220px; }
-  .status-panel { top: 14px; left: 14px; }
+  .objective-panel { top: 14px; right: 14px; min-width: 0; width: 43vw; padding: 10px; gap: 7px; }
+  .objective-panel strong { font-size: 12px; }
+  .objective-label { font-size: 7px; line-height: 1.4; }
+  .objective-panel small { font-size: 7px; line-height: 1.4; }
+  .status-panel { top: 14px; left: 14px; width: 43vw; padding: 10px; }
+  .status-heading { font-size: 12px; }
+  #pace-value { display: none; }
   .controls-card,
   .ability-panel { display: none; }
   .boot-screen h1 { letter-spacing: .06em; }
+  .boot-copy { max-width: 300px; text-align: center; font-size: 13px; line-height: 1.5; }
+}
+
+@media (max-width: 360px) {
+  .touch-stick { width: 110px; height: 110px; left: 12px; }
+  .touch-actions { right: 12px; grid-template-columns: repeat(3, 44px); gap: 6px; }
+  .touch-actions button { min-height: 44px; font-size: 12px; }
+  .touch-actions .touch-jump { min-height: 54px; }
+  .input-toggle { padding: 5px; font-size: 9px; }
+  .touch-mode.touch-playing .input-toggle { bottom: max(166px, calc(env(safe-area-inset-bottom) + 156px)); }
+}
+
+@media (max-height: 500px) {
+  .boot-screen { padding: 12px 12px 42px; }
+  .boot-mark { display: none; }
+  .boot-screen h1 { font-size: 44px; line-height: .95; }
+  .boot-screen h1 br { display: none; }
+  .boot-screen h1 em { display: inline-block; margin-left: .15em; }
+  .boot-copy { max-width: 500px; margin: 8px 0; font-size: 11px; line-height: 1.3; }
+  .eyebrow { margin-bottom: 7px; font-size: 8px; }
+  #enter-game { padding: 9px 20px; }
+  .load-status { margin: 8px 0; }
+  .input-hint { max-width: 520px; font-size: 10px; }
+  .boot-credits { margin-top: 6px; }
+  .touch-mode .status-panel { padding: 7px 10px; }
+  .touch-mode .status-footer { display: none; }
+  .touch-mode .status-heading { margin-bottom: 4px; }
+  .touch-mode .meter-label { margin: 4px 0; }
+  .touch-mode .satiety-track, .touch-mode .chonk-track { margin-bottom: 4px; height: 4px; }
+  .touch-mode .ability-panel { top: max(106px, calc(env(safe-area-inset-top) + 98px)); }
+  .touch-mode .toast { bottom: auto; top: 40%; max-width: 320px; }
+  .touch-mode .prompt { bottom: 30%; }
+  .touch-look-hint { top: 38%; }
 }
