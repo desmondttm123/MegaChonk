@@ -22,23 +22,42 @@ const path = require("path");
     await new Promise((resolve) => setTimeout(resolve, 800));
     await page.goto("http://127.0.0.1:4173", { waitUntil: "networkidle" });
     await page.waitForFunction(() => window.__megaChonk?.state?.ready === true, null, { timeout: 30000 });
-    const coatChecks = [];
-    for (const style of ["van", "tuxedo", "calico", "orangeTabby"]) {
-      await page.click(`[data-coat="${style}"]`);
-      coatChecks.push(await page.evaluate((expectedStyle) => {
-        const materials = new Set();
-        window.__megaChonk.character.model.traverse((object) => {
-          if (object.isMesh && object.material) materials.add(object.material.name);
+    await page.waitForTimeout(120);
+    const modelVisual = await page.evaluate(() => ({
+      ...window.__megaChonk.snapshot(),
+      coatSelectors: document.querySelectorAll("[data-coat]").length,
+      modelName: window.__megaChonk.character.model?.name,
+      bodyMaterial: (() => {
+        let result = null;
+        window.__megaChonk.character.model?.traverse((object) => {
+          if (result || !object.isMesh || object.geometry.attributes.position.count < 50000) return;
+          const material = Array.isArray(object.material) ? object.material[0] : object.material;
+          result = {
+            name: material?.name,
+            type: material?.type,
+            wireframe: material?.wireframe,
+            flatShading: material?.flatShading,
+            vertexColors: material?.vertexColors,
+            hasNormalMap: Boolean(material?.normalMap),
+            hasBumpMap: Boolean(material?.bumpMap),
+            hasVertexNormals: Boolean(object.geometry.attributes.normal),
+            hasVertexColors: Boolean(object.geometry.attributes.color),
+            positionCount: object.geometry.attributes.position.count,
+            indexed: Boolean(object.geometry.index),
+            brownPawVertices: (() => {
+              const colors = object.geometry.attributes.color;
+              const positions = object.geometry.attributes.position;
+              let invalid = 0;
+              for (let index = 0; index < positions.count; index += 1) {
+                if (positions.getY(index) < 0.12 && colors.getY(index) < 0.4) invalid += 1;
+              }
+              return invalid;
+            })(),
+          };
         });
-        const selectedButtons = [...document.querySelectorAll("[data-coat].is-active")]
-          .map((button) => button.dataset.coat);
-        return { style: expectedStyle, active: window.__megaChonk.state.coat, selectedButtons, materials: [...materials] };
-      }, style));
-    }
-    await page.click('[data-coat="calico"]');
-    await page.screenshot({
-      path: path.join(root, "assets", "previews", "mega-chonk-coat-selector.png"),
-    });
+        return result;
+      })(),
+    }));
 
     const levelChecks = [];
     for (const level of [0, 1, 2]) {
@@ -107,6 +126,10 @@ const path = require("path");
     await page.screenshot({
       path: path.join(root, "assets", "previews", "mega-chonk-gameplay.png"),
     });
+    await page.keyboard.down("w");
+    await page.waitForTimeout(220);
+    const groomInterrupted = await page.evaluate(() => window.__megaChonk.snapshot());
+    await page.keyboard.up("w");
     for (const level of [1, 2]) {
       await page.evaluate((index) => window.__megaChonk.loadLevel(index), level);
       await page.waitForTimeout(650);
@@ -116,6 +139,7 @@ const path = require("path");
     }
     const moved = Math.hypot(after.position[0] - before.position[0], after.position[2] - before.position[2]);
     if (moved < 0.4) errors.push(`movement:cat only moved ${moved.toFixed(3)} units`);
+    if (after.position[2] >= before.position[2] - 0.35) errors.push(`movement:W should move away from the camera toward -Z, got ${before.position[2].toFixed(3)} -> ${after.position[2].toFixed(3)}`);
     if (!during.activeAnimation?.startsWith("Walk")) errors.push(`animation:expected Walk, got ${during.activeAnimation}`);
     if (!jumping.activeAnimation?.startsWith("Jump") || jumping.position[1] < 0.12 || jumping.grounded) {
       errors.push(`jump:expected airborne Jump above 0.12, got ${JSON.stringify(jumping)}`);
@@ -124,8 +148,15 @@ const path = require("path");
     if (!clawing.activeAnimation?.startsWith("Claw")) errors.push(`animation:expected Claw, got ${clawing.activeAnimation}`);
     if (!biting.activeAnimation?.startsWith("Bite")) errors.push(`animation:expected Bite, got ${biting.activeAnimation}`);
     if (!groomed.activeAnimation?.startsWith("Groom")) errors.push(`animation:expected Groom after idle timeout, got ${groomed.activeAnimation}`);
+    if (!groomInterrupted.activeAnimation?.startsWith("Walk")) errors.push(`animation:movement failed to interrupt Groom, got ${groomInterrupted.activeAnimation}`);
     if (after.satiety >= before.satiety) errors.push("satiety:movement did not drain satiety");
-    if (before.triangles < 200000) errors.push(`mesh:expected at least 200000 triangles, got ${before.triangles}`);
+    if (modelVisual.visualMode !== "skinned-mesh") errors.push(`visual:unexpected mode ${modelVisual.visualMode}`);
+    if (modelVisual.triangles < 175000) errors.push(`visual:expected high-density cat mesh, got ${modelVisual.triangles} triangles`);
+    if (modelVisual.animationClips !== 7) errors.push(`visual:expected 7 skeletal clips, got ${modelVisual.animationClips}`);
+    if (modelVisual.skinnedMeshes < 1) errors.push("visual:model has no skinned meshes");
+    if (modelVisual.bodyMaterial.brownPawVertices !== 0) errors.push(`visual:exported coat colors are scrambled on ${modelVisual.bodyMaterial.brownPawVertices} paw vertices`);
+    if (modelVisual.coat !== "van" || modelVisual.coatSelectors !== 0) errors.push("visual:Turkish Van was not the sole runtime coat");
+    if (modelVisual.modelName !== "TurkishVanSkinnedRig") errors.push(`visual:missing skinned runtime model, got ${modelVisual.modelName}`);
     if (Math.abs(heavyBlocked.position[1] - heavyBefore.position[1]) > 0.03 || heavyBlocked.jumpAllowed) errors.push("jump:heavy condition did not block the leap");
     if (hungryBlocked.position[1] > 0.03 || hungryBlocked.jumpAllowed) errors.push("jump:hunger condition did not block the leap");
     if (layoutA === layoutB) errors.push("generation:different seeds produced the same collider layout");
@@ -138,17 +169,8 @@ const path = require("path");
     for (const action of ["Idle", "Walk", "Groom", "Jump", "Sit", "Claw", "Bite"]) {
       if (!before.availableActions.includes(action)) errors.push(`animation:missing ${action} clip`);
     }
-    for (const check of coatChecks) {
-      if (check.active !== check.style) errors.push(`coat:${check.style} did not become active`);
-      if (check.selectedButtons.length !== 1 || check.selectedButtons[0] !== check.style) {
-        errors.push(`coat:${check.style} selector did not show the active state`);
-      }
-      if (!check.materials.some((name) => name.startsWith(`Coat_${check.style}_`))) {
-        errors.push(`coat:${check.style} did not apply its procedural materials`);
-      }
-    }
     console.log(JSON.stringify({
-      coatChecks,
+      modelVisual,
       levelChecks,
       randomLayoutsDiffer: layoutA !== layoutB,
       before,

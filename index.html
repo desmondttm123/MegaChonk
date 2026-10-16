@@ -22,26 +22,10 @@
       <div class="boot-mark" aria-hidden="true"><span></span><span></span></div>
       <p class="eyebrow">Three rooms. Nine lives. One appetite.</p>
       <h1>MEGA<br /><em>CHONK</em></h1>
-      <p class="boot-copy">Raid the bowls. Dodge the vacuum. Rule the house.</p>
-      <div class="coat-picker" aria-label="Choose the cat's coat">
-        <span class="coat-picker-label">Choose a coat</span>
-        <div class="coat-options" role="group" aria-label="Cat coat">
-          <button class="coat-option is-active" type="button" data-coat="van" aria-pressed="true">
-            <span class="coat-swatch coat-swatch-van" aria-hidden="true"></span>Van
-          </button>
-          <button class="coat-option" type="button" data-coat="tuxedo" aria-pressed="false">
-            <span class="coat-swatch coat-swatch-tuxedo" aria-hidden="true"></span>Tuxedo
-          </button>
-          <button class="coat-option" type="button" data-coat="calico" aria-pressed="false">
-            <span class="coat-swatch coat-swatch-calico" aria-hidden="true"></span>Calico
-          </button>
-          <button class="coat-option" type="button" data-coat="orangeTabby" aria-pressed="false">
-            <span class="coat-swatch coat-swatch-tabby" aria-hidden="true"></span>Tabby
-          </button>
-        </div>
-      </div>
+      <p class="boot-copy">Guide a Turkish Van. Explore upstairs. Find catnip. Rule the house.</p>
       <button id="enter-game" type="button" disabled>Enter the house</button>
       <p id="load-status" class="load-status">Preparing the house...</p>
+      <p class="boot-credits"><a href="./credits.html" target="_blank" rel="noopener">Credits &amp; licenses</a></p>
     </div>
     <div id="hud" class="hud is-hidden">
       <section class="status-panel" aria-label="Cat status">
@@ -57,6 +41,7 @@
         <div><span id="level-name" class="objective-label">Living Room Zoomies</span><strong id="objective-text">Find the first supper</strong><small id="level-progress">LEVEL 1 OF 3 · XP 0</small></div>
       </section>
       <section class="ability-panel" aria-label="Abilities">
+        <span id="boost-status" class="boost-status" role="status" hidden></span>
         <span id="jump-readiness">LEAP READY</span>
         <strong><kbd>SPACE</kbd> Jump</strong>
         <span><kbd>Q</kbd> Sit · <kbd>LMB</kbd> Claw · <kbd>RMB</kbd> Bite</span>
@@ -65,7 +50,7 @@
       <div id="prompt" class="prompt"></div>
       <aside class="controls-card">
         <span><kbd>WASD</kbd> Move</span><span><kbd>SHIFT</kbd> Trot</span>
-        <span><kbd>SPACE</kbd> Jump</span><span><kbd>MOUSE</kbd> Look</span><span><kbd>C</kbd> Coat: <b id="coat-name">VAN</b></span><span><kbd>ESC</kbd> Release</span>
+        <span><kbd>SPACE</kbd> Jump</span><span><kbd>MOUSE</kbd> Look</span><span><kbd>ESC</kbd> Release</span>
       </aside>
       <div id="toast" class="toast"></div>
     </div>

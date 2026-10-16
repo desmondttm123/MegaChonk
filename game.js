@@ -24,10 +24,9 @@ const ui = {
   levelName: document.querySelector("#level-name"),
   levelProgress: document.querySelector("#level-progress"),
   jumpReadiness: document.querySelector("#jump-readiness"),
+  boost: document.querySelector("#boost-status"),
   prompt: document.querySelector("#prompt"),
   toast: document.querySelector("#toast"),
-  coatName: document.querySelector("#coat-name"),
-  coatButtons: [...document.querySelectorAll("[data-coat]")],
   transition: document.querySelector("#level-transition"),
   transitionKicker: document.querySelector("#transition-kicker"),
   transitionTitle: document.querySelector("#transition-title"),
@@ -67,6 +66,8 @@ const animatedPlants = [];
 const movingPlatforms = [];
 const hazards = [];
 const checkpointMarkers = [];
+const verticalRoutes = [];
+const worldSigns = [];
 const levelRoot = new THREE.Group();
 levelRoot.name = "GeneratedLevel";
 scene.add(levelRoot);
@@ -85,7 +86,7 @@ const state = {
   ready: false,
   pointerLocked: false,
   yaw: 0,
-  pitch: 0.27,
+  pitch: 0.20,
   satiety: 62,
   idleTime: 0,
   eaten: 0,
@@ -109,18 +110,23 @@ const state = {
   jumps: 0,
   runStartedAt: 0,
   invulnerable: 0,
+  catnipTime: 0,
 };
 
 const character = {
   root: new THREE.Group(),
   model: null,
   mixer: null,
+  shadow: null,
   actions: {},
   currentAction: null,
   velocity: new THREE.Vector3(),
   heading: Math.PI,
   radius: 0.36,
   triangleCount: 0,
+  clipCount: 0,
+  skinnedMeshCount: 0,
+  visualMode: "loading",
   verticalVelocity: 0,
   currentPlatform: null,
   checkpoint: new THREE.Vector3(0, 0, 7.2),
@@ -131,19 +137,17 @@ scene.add(character.root);
 
 let dust;
 
-const COAT_ORDER = ["van", "tuxedo", "calico", "orangeTabby"];
-const COAT_LABELS = {
-  van: "Van",
-  tuxedo: "Tuxedo",
-  calico: "Calico",
-  orangeTabby: "Orange tabby",
-};
-const coatMaterialCache = new Map();
+const CAT_ACTIONS = ["Idle", "Walk", "Groom", "Jump", "Sit", "Claw", "Bite"];
+const MOVEMENT_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"];
 const GRAVITY = 15.8;
+const CATNIP_DURATION = 18;
+const CATNIP_SPEED = 1.32;
+const CATNIP_LEAP = 1.18;
+const STEP_HEIGHT = 0.18;
 const LEVELS = [
   {
     name: "Living Room Zoomies",
-    description: "Clear the cushions, raid the bowls, and stay ahead of the robot vacuum.",
+    description: "Raid the bowls upstairs. Follow the oak stairs, then try the catnip balcony leap.",
     foods: 3,
     spawn: [0, 0, 10.8],
     goal: [0, -11.15],
@@ -151,7 +155,7 @@ const LEVELS = [
   },
   {
     name: "Kitchen Counter Caper",
-    description: "Cross the spills, climb the ottoman, and hunt supper between the counters.",
+    description: "Cross the spills and climb to the pantry loft. Catnip opens a longer shelf jump.",
     foods: 4,
     spawn: [0, 0, 11.1],
     goal: [0, -11.15],
@@ -159,7 +163,7 @@ const LEVELS = [
   },
   {
     name: "Attic Midnight Run",
-    description: "Bound through the playroom and find the last bowls among the storage trunks.",
+    description: "Search the playroom and upper gallery. Take the stairs or leap between high perches.",
     foods: 5,
     spawn: [0, 0, 11.1],
     goal: [0, -11.15],
@@ -167,10 +171,9 @@ const LEVELS = [
   },
 ];
 const FOOD_LABELS = ["KIBBLE", "FISH", "SARDINES", "TREAT", "SUPPER", "CHICKEN", "TUNA"];
-const TRANSIENT_ACTIONS = new Set(["Jump", "Claw", "Bite"]);
-
 let activeGoal = null;
 let transitionTimer = null;
+let eatingTarget = null;
 
 function seededRandom(seed) {
   const value = Math.sin(seed * 91.173) * 43758.5453;
@@ -281,175 +284,6 @@ function makeTexture(kind, size = 512) {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return texture;
-}
-
-function nameSeed(name) {
-  let hash = 2166136261;
-  for (let i = 0; i < name.length; i += 1) {
-    hash ^= name.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function drawCoatBlob(ctx, x, y, radiusX, radiusY, color, seed) {
-  ctx.beginPath();
-  for (let i = 0; i < 18; i += 1) {
-    const angle = (i / 18) * Math.PI * 2;
-    const wobble = 0.78 + seededRandom(seed + i * 7.1) * 0.36;
-    const px = x + Math.cos(angle) * radiusX * wobble;
-    const py = y + Math.sin(angle) * radiusY * wobble;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-}
-
-function makeCoatTexture(style, role, variation, size = 384) {
-  const textureCanvas = document.createElement("canvas");
-  textureCanvas.width = size;
-  textureCanvas.height = size;
-  const ctx = textureCanvas.getContext("2d");
-  const marked = role === "patch" || role === "tail" || role === "ear";
-  const accent = role === "accent";
-  const seed = variation * 997 + COAT_ORDER.indexOf(style) * 409;
-  let base = "#ece8df";
-
-  if (style === "van") base = marked ? "#6a2f17" : "#ece8df";
-  if (style === "tuxedo") base = accent ? "#eeeae2" : "#171a1b";
-  if (style === "calico") {
-    if (accent) base = "#eeeae1";
-    else if (role === "patch" || role === "ear") base = variation % 2 ? "#222120" : "#bd5b20";
-    else base = "#eeeae1";
-  }
-  if (style === "orangeTabby") {
-    if (accent) base = "#efd1a0";
-    else if (role === "patch") base = "#8d3715";
-    else base = "#cf6d27";
-  }
-
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, size, size);
-
-  if (style === "calico" && !accent && role !== "patch" && role !== "ear") {
-    for (let i = 0; i < 10; i += 1) {
-      const x = seededRandom(seed + i * 13 + 4) * size;
-      const y = seededRandom(seed + i * 17 + 7) * size;
-      const rx = size * (0.08 + seededRandom(seed + i * 19 + 2) * 0.13);
-      const ry = size * (0.07 + seededRandom(seed + i * 23 + 8) * 0.15);
-      drawCoatBlob(ctx, x, y, rx, ry, i % 2 ? "#242323" : "#bd5d21", seed + i * 31);
-    }
-  }
-
-  if (style === "orangeTabby" && !accent) {
-    ctx.strokeStyle = role === "patch" ? "rgba(74, 25, 9, .76)" : "rgba(101, 39, 14, .72)";
-    ctx.lineCap = "round";
-    const stripeCount = role === "tail" ? 13 : 9;
-    for (let i = 0; i < stripeCount; i += 1) {
-      const y = ((i + 0.55) / stripeCount) * size;
-      const bend = (seededRandom(seed + i * 29) - 0.5) * size * 0.16;
-      ctx.lineWidth = size * (0.018 + seededRandom(seed + i * 37) * 0.018);
-      ctx.beginPath();
-      ctx.moveTo(-12, y);
-      ctx.bezierCurveTo(size * 0.28, y + bend, size * 0.67, y - bend, size + 12, y);
-      ctx.stroke();
-    }
-    if (role === "base") {
-      ctx.lineWidth = size * 0.018;
-      for (const x of [size * 0.43, size * 0.5, size * 0.57]) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.quadraticCurveTo(x + (x - size * 0.5) * 0.7, size * 0.18, x, size * 0.3);
-        ctx.stroke();
-      }
-    }
-  }
-
-  ctx.globalAlpha = style === "tuxedo" && !accent ? 0.10 : 0.065;
-  for (let i = 0; i < 2600; i += 1) {
-    ctx.fillStyle = seededRandom(seed + i * 3 + 101) > 0.52 ? "#ffffff" : "#140d08";
-    const x = seededRandom(seed + i * 5 + 203) * size;
-    const y = seededRandom(seed + i * 7 + 307) * size;
-    const length = 1 + seededRandom(seed + i * 11 + 401) * 3;
-    ctx.fillRect(x, y, length, 0.7);
-  }
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(textureCanvas);
-  texture.name = `Coat_${style}_${role}_${variation}`;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return texture;
-}
-
-function coatRole(meshName) {
-  const name = meshName.toLowerCase();
-  if (name.includes("eye") || name.includes("pupil") || name.includes("nose")) return null;
-  if (name.includes("muzzle") || name.includes("cheek") || name.includes("chest") || name.includes("paw")) return "accent";
-  if (name.includes("patch")) return "patch";
-  if (name.includes("tail")) return "tail";
-  if (name.includes("ear")) return "ear";
-  return "base";
-}
-
-function getCoatMaterial(style, role, variation) {
-  const key = `${style}:${role}:${variation}`;
-  if (coatMaterialCache.has(key)) return coatMaterialCache.get(key);
-  const material = new THREE.MeshStandardMaterial({
-    name: `Coat_${style}_${role}_${variation}`,
-    color: 0xffffff,
-    map: makeCoatTexture(style, role, variation),
-    roughness: role === "accent" ? 0.9 : 0.84,
-    metalness: 0,
-    envMapIntensity: 0.48,
-  });
-  coatMaterialCache.set(key, material);
-  return material;
-}
-
-function applyCoat(style, announce = true) {
-  if (!COAT_ORDER.includes(style)) return false;
-  state.coat = style;
-  character.model?.traverse((obj) => {
-    if (!obj.isMesh) return;
-    const role = coatRole(obj.name);
-    if (!role) return;
-    const variation = nameSeed(obj.name) % 3;
-    obj.material = getCoatMaterial(style, role, variation);
-  });
-  ui.coatName.textContent = COAT_LABELS[style].toUpperCase();
-  for (const button of ui.coatButtons) {
-    const selected = button.dataset.coat === style;
-    button.classList.toggle("is-active", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  }
-  if (announce && state.started) showToast(`${COAT_LABELS[style]} coat selected.`, 2.2);
-  return true;
-}
-
-function cycleCoat() {
-  const nextIndex = (COAT_ORDER.indexOf(state.coat) + 1) % COAT_ORDER.length;
-  applyCoat(COAT_ORDER[nextIndex]);
-}
-
-function setupCoatControls() {
-  for (const button of ui.coatButtons) {
-    button.addEventListener("click", () => applyCoat(button.dataset.coat, false));
-  }
-}
-
-function countTriangles(root) {
-  let count = 0;
-  root.traverse((obj) => {
-    if (!obj.isMesh || !obj.geometry) return;
-    count += obj.geometry.index
-      ? obj.geometry.index.count / 3
-      : obj.geometry.getAttribute("position").count / 3;
-  });
-  return Math.round(count);
 }
 
 const textures = {
@@ -609,16 +443,18 @@ function addHousePlant(x, z, scale = 1) {
 }
 
 function addCeilingLight(x, z, color = 0xffc98d) {
-  addCylinder("PendantCord", x, 5.16, z, 0.022, 0.022, 1.05, materials.metal, 12);
+  const raised = z < -3;
+  const offset = raised ? 0.8 : 0;
+  addCylinder("PendantCord", x, raised ? 5.66 : 5.16, z, 0.022, 0.022, raised ? 0.28 : 1.05, materials.metal, 12);
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.5, 0.34, 28, 1, true), materials.woodLight);
-  shade.position.set(x, 4.62, z);
+  shade.position.set(x, 4.62 + offset, z);
   shade.castShadow = true;
   levelRoot.add(shade);
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 12), materials.glow);
-  bulb.position.set(x, 4.47, z);
+  bulb.position.set(x, 4.47 + offset, z);
   levelRoot.add(bulb);
   const light = new THREE.PointLight(color, 18, 10.5, 1.65);
-  light.position.set(x, 4.3, z);
+  light.position.set(x, 4.3 + offset, z);
   light.castShadow = false;
   levelRoot.add(light);
   lamps.push({ light, phase: seededRandom(x * 11 + z * 7) * Math.PI * 2 });
@@ -689,7 +525,16 @@ function createLevelRandom(levelIndex) {
 function clearLevel() {
   for (const child of [...levelRoot.children]) {
     levelRoot.remove(child);
-    child.traverse((object) => object.geometry?.dispose?.());
+    child.traverse((object) => {
+      object.geometry?.dispose?.();
+      if (child.userData.ownsMaterials) {
+        const owned = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of owned) {
+          material?.map?.dispose();
+          material?.dispose();
+        }
+      }
+    });
   }
   colliders.length = 0;
   surfaces.length = 0;
@@ -700,6 +545,9 @@ function clearLevel() {
   movingPlatforms.length = 0;
   hazards.length = 0;
   checkpointMarkers.length = 0;
+  verticalRoutes.length = 0;
+  worldSigns.length = 0;
+  eatingTarget = null;
   activeGoal = null;
   character.currentPlatform = null;
 }
@@ -777,6 +625,88 @@ function createStaticPlatform(x, z, width, depth, height) {
   const ottoman = addBox("OttomanPlatform", new THREE.Vector3(x, height / 2, z), new THREE.Vector3(width, height, depth), materials.upholsteryGold, { collider: true, surface: true, occluder: true, radius: 0.16 });
   addBox("OttomanTop", new THREE.Vector3(x, height + 0.035, z), new THREE.Vector3(width * 0.92, 0.07, depth * 0.9), materials.upholsteryWarm, { radius: 0.08 });
   return ottoman;
+}
+
+function addWorldSign(text, x, y, z, color = "#ead6a9") {
+  const label = document.createElement("canvas");
+  label.width = 512;
+  label.height = 128;
+  const context = label.getContext("2d");
+  context.fillStyle = "rgba(32, 39, 30, 0.88)";
+  context.fillRect(0, 0, 512, 128);
+  context.strokeStyle = color;
+  context.lineWidth = 3;
+  context.strokeRect(5, 5, 502, 118);
+  context.fillStyle = color;
+  context.font = "bold 29px Georgia";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, 256, 65);
+  const texture = new THREE.CanvasTexture(label);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: true }));
+  sign.position.set(x, y, z);
+  sign.scale.set(2.35, 0.59, 1);
+  sign.userData.ownsMaterials = true;
+  worldSigns.push(sign);
+  levelRoot.add(sign);
+  return sign;
+}
+
+function buildVerticalRoute(definition) {
+  const height = 2.7;
+  const stairX = -7.5;
+  const deck = addBox("UpstairsGallery", new THREE.Vector3(0, height - 0.12, -10.2), new THREE.Vector3(18, 0.24, 4.8), materials.floorWood, { collider: true, surface: true, occluder: true, radius: 0.035 });
+  deck.userData.collider.stepUp = true;
+  deck.userData.surface.inset = 0;
+  for (const x of [-8.65, 0, 8.65]) {
+    addBox("GallerySupport", new THREE.Vector3(x, 1.25, -11.8), new THREE.Vector3(0.18, 2.5, 0.18), materials.wood, { collider: true, radius: 0.025 });
+  }
+  for (let step = 0; step < 18; step += 1) {
+    const top = (step + 1) * 0.15;
+    const z = -0.45 - step * 0.42;
+    const tread = addBox("OakStair", new THREE.Vector3(stairX, top / 2, z), new THREE.Vector3(2.2, top, 0.43), materials.woodLight, { collider: true, surface: true, radius: 0.016 });
+    tread.userData.collider.stepUp = true;
+    tread.userData.surface.inset = 0;
+    addBox("StairRunner", new THREE.Vector3(stairX, top + 0.004, z), new THREE.Vector3(1.32, 0.008, 0.39), materials.upholstery, { castShadow: false, radius: 0.004 });
+    if (step % 3 === 0) {
+      for (const x of [stairX - 1.18, stairX + 1.18]) {
+        addBox("StairBaluster", new THREE.Vector3(x, top + 0.37, z), new THREE.Vector3(0.055, 0.74, 0.055), materials.trim, { radius: 0.012 });
+      }
+    }
+  }
+  for (const x of [stairX - 1.18, stairX + 1.18]) {
+    const rail = addBox("StairHandrail", new THREE.Vector3(x, 2.14, -4.0), new THREE.Vector3(0.09, 0.09, 8.0), materials.wood, { radius: 0.025 });
+    rail.rotation.x = Math.atan(0.15 / 0.42);
+  }
+  // Leave openings for the stairs and the marked long-jump launch lane.
+  for (const [x, width] of [[-1.25, 9.8], [7.3, 3.3]]) {
+    addBox("GalleryGuardrail", new THREE.Vector3(x, height + 0.64, -7.84), new THREE.Vector3(width, 0.08, 0.08), materials.wood, { radius: 0.025 });
+    addBox("GallerySafetyRail", new THREE.Vector3(x, height + 0.31, -7.84), new THREE.Vector3(width, 0.62, 0.07), materials.trim, { collider: true, radius: 0.02 });
+    for (let offset = -width / 2; offset < width / 2; offset += 0.72) {
+      addBox("GalleryBaluster", new THREE.Vector3(x + offset, height + 0.32, -7.84), new THREE.Vector3(0.04, 0.64, 0.04), materials.wood, { radius: 0.01 });
+    }
+  }
+  const rug = addBox("UpstairsRunner", new THREE.Vector3(-1.5, height + 0.006, -10.3), new THREE.Vector3(7.6, 0.012, 2.5), materials.upholsteryWarm, { castShadow: false, radius: 0.005 });
+  rug.receiveShadow = true;
+  addBox("LoftBench", new THREE.Vector3(0, height + 0.22, -12.0), new THREE.Vector3(3.4, 0.44, 0.6), materials.upholsteryGold, { collider: true, surface: true, radius: 0.13 });
+  addBox("HighWindowPerch", new THREE.Vector3(4.5, height - 0.10, -2.9), new THREE.Vector3(2.4, 0.2, 2.2), materials.woodLight, { collider: true, surface: true, occluder: true, radius: 0.065 });
+  addBox("PerchCushion", new THREE.Vector3(4.5, height + 0.015, -2.9), new THREE.Vector3(2.15, 0.03, 1.95), materials.upholstery, { castShadow: false, radius: 0.015 });
+  for (const [x, z, top] of [[8.7, 0.1, 1.95], [8.7, 2.7, 1.20], [8.3, 4.8, 0.55]]) {
+    addBox("DescendingCatShelf", new THREE.Vector3(x, top - 0.09, z), new THREE.Vector3(1.9, 0.18, 1.7), materials.woodLight, { collider: true, surface: true, radius: 0.055 });
+    addBox("ShelfSupport", new THREE.Vector3(x, (top - 0.18) / 2, z), new THREE.Vector3(0.16, top - 0.18, 0.16), materials.wood, { collider: true, radius: 0.02 });
+  }
+  addWorldSign("UPSTAIRS / OAK STAIRS", stairX, 1.15, 0.60);
+  addWorldSign("CATNIP / SHIFT + SPACE", 4.5, height + 1.15, -8.9, "#bde8ad");
+  addWorldSign("BONUS PERCH", 4.5, height + 0.90, -2.9);
+  createFood(4.5, -9.0, "CATNIP", height, { required: false, boost: true });
+  createFood(4.5, -2.9, "TREAT", height, { required: false, xp: 50 });
+  verticalRoutes.push({
+    name: `${definition.theme} upstairs`, height,
+    stairs: { x: stairX, entry: [stairX, 0, 0.5], top: [stairX, height, -8.5] },
+    launch: [4.5, height, -8.25], landing: [4.5, height, -3.5], gap: 3.8,
+    deck: { minX: -9, maxX: 9, minZ: -12.6, maxZ: -7.8 },
+  });
 }
 
 function createMovingPlatform(x, z, width, depth, height, axis, amplitude, speed, phase) {
@@ -887,6 +817,7 @@ function createGoal(x, z) {
 
 function obstacleAreaIsClear(x, z, width, spawn) {
   const half = width / 2 + 0.28;
+  if (verticalRoutes.some((route) => Math.hypot(x - route.stairs.entry[0], z - route.stairs.entry[2]) < half + 1.3)) return false;
   if (colliders.some((box) => x + half > box.minX && x - half < box.maxX && z + half > box.minZ && z - half < box.maxZ)) return false;
   if (foods.some((food) => Math.hypot(x - food.group.position.x, z - food.group.position.z) < half + 1.45)) return false;
   if (activeGoal && Math.hypot(x - activeGoal.position.x, z - activeGoal.position.z) < half + 1.7) return false;
@@ -937,8 +868,10 @@ function buildLevel(levelIndex, announce = true) {
   state.sitting = false;
   state.forcedAction = null;
   state.actionTime = 0;
+  state.catnipTime = 0;
   state.transitioning = false;
   buildLevelShell(definition, random);
+  buildVerticalRoute(definition);
   createGoal(definition.goal[0], definition.goal[1]);
 
   if (definition.theme === "living") {
@@ -950,7 +883,7 @@ function buildLevel(levelIndex, announce = true) {
     createCheckpoint(0, 0.2);
     createFood(-5.4 + jitter(0.7), 8.1, FOOD_LABELS[0]);
     createFood(platform.position.x, platform.position.z, FOOD_LABELS[1], 0.58);
-    createFood(6.5 + jitter(0.8), -7.7, FOOD_LABELS[2]);
+    createFood(6.1, -10.2, FOOD_LABELS[2], 2.7);
     addRandomObstacles(random, 7, definition.theme, definition.spawn);
   } else if (definition.theme === "kitchen") {
     createSpill(0, 6.0 + jitter(0.4), 8.6, 2.25);
@@ -963,7 +896,7 @@ function buildLevel(levelIndex, announce = true) {
     createFood(-6.2, 8.4, FOOD_LABELS[3]);
     createFood(6.1, 3.4, FOOD_LABELS[4]);
     createFood(platform.position.x, platform.position.z, FOOD_LABELS[5], 0.72);
-    createFood(4.8, -9.2, FOOD_LABELS[1]);
+    createFood(6.1, -10.2, FOOD_LABELS[1], 2.7);
     addRandomObstacles(random, 9, definition.theme, definition.spawn);
   } else {
     createJumpBarrier(jitter(0.8), 7.5, 7.0, 0.78, materials.upholsteryWarm);
@@ -977,9 +910,9 @@ function buildLevel(levelIndex, announce = true) {
     createCheckpoint(0, -2.8);
     createFood(-6.2, 9.0, FOOD_LABELS[2]);
     createFood(playTable.position.x, playTable.position.z, FOOD_LABELS[5], 0.78);
-    createFood(-6.4, -0.8, FOOD_LABELS[0]);
+    createFood(-5.8, -0.8, FOOD_LABELS[0]);
     createFood(6.4, -7.8, FOOD_LABELS[1]);
-    createFood(-2.3, -10.0, FOOD_LABELS[6]);
+    createFood(-2.3, -10.0, FOOD_LABELS[6], 2.7);
     addRandomObstacles(random, 11, definition.theme, definition.spawn);
   }
 
@@ -995,19 +928,20 @@ function buildLevel(levelIndex, announce = true) {
   if (announce && state.started) showLevelCard(definition, levelIndex);
 }
 
-function createFood(x, z, label, y = 0) {
+function createFood(x, z, label, y = 0, options = {}) {
   const group = new THREE.Group();
+  group.userData.ownsMaterials = true;
   const bowlMat = new THREE.MeshStandardMaterial({ color: 0x886247, roughness: 0.55, metalness: 0.08 });
   const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.34, 0.18, 32, 1, true), bowlMat);
   bowl.castShadow = true;
   bowl.position.y = 0.1;
   group.add(bowl);
-  const foodMat = new THREE.MeshStandardMaterial({ color: label === "FISH" ? 0x9db6ad : 0xa75e35, roughness: 0.72, emissive: 0x27150c, emissiveIntensity: 0.4 });
+  const foodMat = new THREE.MeshStandardMaterial({ color: options.boost ? 0x82b458 : label === "FISH" ? 0x9db6ad : 0xa75e35, roughness: 0.72, emissive: options.boost ? 0x346e24 : 0x27150c, emissiveIntensity: 0.4 });
   const food = new THREE.Mesh(new THREE.SphereGeometry(0.29, 22, 12), foodMat);
   food.scale.y = 0.32;
   food.position.y = 0.2;
   group.add(food);
-  const halo = new THREE.PointLight(0xe7a25d, 2.2, 2.4, 2);
+  const halo = new THREE.PointLight(options.boost ? 0xacec83 : 0xe7a25d, 2.2, 2.4, 2);
   halo.position.y = 0.65;
   group.add(halo);
   group.position.set(x, y, z);
@@ -1016,10 +950,15 @@ function createFood(x, z, label, y = 0) {
     group,
     label,
     active: true,
+    required: options.required ?? true,
+    boost: options.boost ?? false,
+    xp: options.xp ?? 25,
+    cooldown: 0,
+    consumed: 0,
     baseY: y,
     phase: seededRandom(x + z + state.level * 31) * Math.PI * 2,
-    satietyValue: label === "TREAT" ? 9 : 13,
-    chonkValue: label === "TREAT" ? 2.2 : 3.5,
+    satietyValue: options.boost ? 3 : label === "TREAT" ? 9 : 13,
+    chonkValue: options.boost ? 0 : label === "TREAT" ? 2.2 : 3.5,
   });
 }
 
@@ -1036,7 +975,8 @@ function addAtmosphere() {
   windowLight.shadow.camera.bottom = -18;
   windowLight.shadow.camera.near = 1;
   windowLight.shadow.camera.far = 45;
-  windowLight.shadow.bias = -0.00035;
+  windowLight.shadow.bias = -0.00008;
+  windowLight.shadow.normalBias = 0.025;
   scene.add(windowLight);
 
   const positions = new Float32Array(520 * 3);
@@ -1051,38 +991,14 @@ function addAtmosphere() {
   scene.add(dust);
 }
 
-function makeFallbackCat() {
-  const group = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: 0.85 });
-  const brown = new THREE.MeshStandardMaterial({ color: 0x753918, roughness: 0.86 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 22), white);
-  body.name = "Body";
-  body.scale.set(0.7, 0.65, 1.15);
-  body.position.y = 0.58;
-  group.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 32, 22), white);
-  head.name = "HeadMass";
-  head.position.set(0, 0.86, 0.38);
-  group.add(head);
-  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.75, 8, 16), brown);
-  tail.name = "Tail.Mesh";
-  tail.rotation.x = Math.PI / 2.7;
-  tail.position.set(0, 0.75, -0.65);
-  group.add(tail);
-  group.traverse((obj) => { if (obj.isMesh) obj.castShadow = true; });
-  return group;
-}
-
-function findClip(clips, name) {
-  return clips.find((clip) => clip.name === name) || clips.find((clip) => clip.name.startsWith(name));
-}
-
-function setAction(name, fade = 0.28) {
+function setAction(name, fadeDuration = 0.24) {
   const next = character.actions[name];
   if (!next || next === character.currentAction) return;
+  const previous = character.currentAction;
   next.enabled = true;
-  next.reset().fadeIn(fade).play();
-  if (character.currentAction) character.currentAction.fadeOut(fade);
+  next.setEffectiveWeight(1);
+  next.reset().fadeIn(fadeDuration).play();
+  if (previous) previous.fadeOut(fadeDuration);
   character.currentAction = next;
 }
 
@@ -1092,58 +1008,126 @@ function triggerAction(name, duration) {
   state.sitting = false;
   state.forcedAction = name;
   state.actionTime = duration;
-  next.enabled = true;
-  next.reset().fadeIn(0.12).play();
-  if (character.currentAction && character.currentAction !== next) character.currentAction.fadeOut(0.12);
-  character.currentAction = next;
+  if (next === character.currentAction) next.reset().play();
+  setAction(name, 0.08);
   return true;
+}
+
+function makeCatShadowTexture() {
+  const shadowCanvas = document.createElement("canvas");
+  shadowCanvas.width = 128;
+  shadowCanvas.height = 128;
+  const context = shadowCanvas.getContext("2d");
+  const gradient = context.createRadialGradient(64, 64, 5, 64, 64, 62);
+  gradient.addColorStop(0, "rgba(20, 12, 8, .58)");
+  gradient.addColorStop(0.48, "rgba(20, 12, 8, .31)");
+  gradient.addColorStop(1, "rgba(20, 12, 8, 0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(shadowCanvas);
+}
+
+function makeCatFurDetail() {
+  const surface = document.createElement("canvas");
+  surface.width = surface.height = 512;
+  const context = surface.getContext("2d");
+  context.fillStyle = "#808080";
+  context.fillRect(0, 0, 512, 512);
+  for (let index = 0; index < 16000; index += 1) {
+    const x = seededRandom(index + 27) * 512;
+    const y = seededRandom(index + 47) * 512;
+    const value = 95 + Math.floor(seededRandom(index + 91) * 65);
+    context.strokeStyle = `rgb(${value},${value},${value})`;
+    context.lineWidth = 0.55;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x + 1.5, y + 3 + seededRandom(index + 135) * 6);
+    context.stroke();
+  }
+  const texture = new THREE.CanvasTexture(surface);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 4);
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return texture;
 }
 
 async function loadCat() {
   const loader = new GLTFLoader();
-  return new Promise((resolve) => {
-    loader.load(
-      "./assets/models/turkish-van-game-cat.glb",
-      (gltf) => {
-        character.model = gltf.scene;
-        character.model.scale.setScalar(0.92);
-        character.model.traverse((obj) => {
-          if (obj.isMesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            if (obj.material) obj.material.envMapIntensity = 0.55;
-          }
+  const gltf = await loader.loadAsync(
+    "./assets/models/turkish-van-game-cat.glb",
+    ({ loaded, total }) => {
+      if (total > 0) ui.loadStatus.textContent = `Loading skinned Turkish Van ${Math.round((loaded / total) * 100)}%`;
+    },
+  );
+
+  character.model = gltf.scene;
+  character.model.name = "TurkishVanSkinnedRig";
+  character.model.scale.setScalar(1.34);
+  const furDetail = makeCatFurDetail();
+  character.model.traverse((object) => {
+    if (!object.isMesh) return;
+    object.castShadow = true;
+    object.receiveShadow = false;
+    object.frustumCulled = true;
+    if (object.isSkinnedMesh) character.skinnedMeshCount += 1;
+    const geometry = object.geometry;
+    if (geometry.index) character.triangleCount += geometry.index.count / 3;
+    else if (geometry.attributes.position) character.triangleCount += geometry.attributes.position.count / 3;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!material) continue;
+      if (material.name === "TurkishVan.Fur") {
+        const fur = new THREE.MeshPhysicalMaterial({
+          name: material.name,
+          color: material.color,
+          vertexColors: true,
+          roughness: 0.94,
+          sheen: 0.55,
+          sheenColor: new THREE.Color(0xd1c5b0),
+          sheenRoughness: 0.85,
+          bumpMap: furDetail,
+          bumpScale: 0.006,
         });
-        character.root.add(character.model);
-        character.triangleCount = countTriangles(character.model);
-        applyCoat(state.coat, false);
-        character.mixer = new THREE.AnimationMixer(character.model);
-        for (const name of ["Idle", "Walk", "Groom", "Jump", "Sit", "Claw", "Bite"]) {
-          const clip = findClip(gltf.animations, name);
-          if (!clip) continue;
-          const action = character.mixer.clipAction(clip);
-          if (TRANSIENT_ACTIONS.has(name) || name === "Sit") {
-            action.setLoop(THREE.LoopOnce, 1);
-            action.clampWhenFinished = true;
-          }
-          character.actions[name] = action;
-        }
-        setAction("Idle", 0);
-        resolve();
-      },
-      (event) => {
-        if (event.total) ui.loadStatus.textContent = `Loading cat ${Math.round((event.loaded / event.total) * 100)}%`;
-      },
-      (error) => {
-        console.error("Animated cat failed to load; using fallback.", error);
-        character.model = makeFallbackCat();
-        character.root.add(character.model);
-        character.triangleCount = countTriangles(character.model);
-        applyCoat(state.coat, false);
-        resolve();
-      },
-    );
+        object.material = fur;
+      }
+      if ("envMapIntensity" in material) material.envMapIntensity = 0.72;
+      material.needsUpdate = true;
+    }
   });
+  character.root.add(character.model);
+
+  character.mixer = new THREE.AnimationMixer(character.model);
+  for (const name of CAT_ACTIONS) {
+    const clip = gltf.animations.find((candidate) => candidate.name.toLowerCase().includes(name.toLowerCase()));
+    if (!clip) throw new Error(`Turkish Van model is missing the ${name} animation clip`);
+    const action = character.mixer.clipAction(clip);
+    const once = ["Sit", "Jump", "Claw", "Bite"].includes(name);
+    action.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, once ? 1 : Infinity);
+    action.clampWhenFinished = once;
+    action.enabled = true;
+    character.actions[name] = action;
+  }
+  character.clipCount = Object.keys(character.actions).length;
+  character.visualMode = "skinned-mesh";
+
+  character.shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: makeCatShadowTexture(),
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  character.shadow.name = "CatGroundShadow";
+  character.shadow.rotation.x = -Math.PI / 2;
+  character.shadow.scale.set(1.05, 0.82, 1);
+  character.shadow.renderOrder = 1;
+  scene.add(character.shadow);
+
+  setAction("Idle", 0);
 }
 
 function speedMultiplier(satiety, chonk) {
@@ -1158,8 +1142,8 @@ function jumpProfile() {
   const fed = THREE.MathUtils.smoothstep(state.satiety, 8, 48);
   const heavyPenalty = 1 - THREE.MathUtils.smoothstep(state.chonk, 58, 90) * 0.54;
   const overfullPenalty = 1 - THREE.MathUtils.smoothstep(state.satiety, 84, 100) * 0.22;
-  const impulse = 4.05 + 2.25 * fed * heavyPenalty * overfullPenalty;
-  const label = impulse > 5.75 ? "LEAP READY" : impulse > 4.75 ? "SHORT LEAP" : "WEAK LEAP";
+  const impulse = (4.05 + 2.25 * fed * heavyPenalty * overfullPenalty) * (state.catnipTime > 0 ? CATNIP_LEAP : 1);
+  const label = state.catnipTime > 0 ? "CATNIP LEAP READY" : impulse > 5.75 ? "LEAP READY" : impulse > 4.75 ? "SHORT LEAP" : "WEAK LEAP";
   return { allowed: true, impulse, label };
 }
 
@@ -1189,20 +1173,33 @@ function circleHitsBox(x, z, radius, box) {
   return (x - closestX) ** 2 + (z - closestZ) ** 2 < radius ** 2;
 }
 
+function signedBoxDistance(x, z, box) {
+  const dx = Math.max(box.minX - x, 0, x - box.maxX);
+  const dz = Math.max(box.minZ - z, 0, z - box.maxZ);
+  if (dx || dz) return Math.hypot(dx, dz);
+  return -Math.min(x - box.minX, box.maxX - x, z - box.minZ, box.maxZ - z);
+}
+
 function canOccupy(x, z, y = character.root.position.y) {
   if (x < -14.35 || x > 14.35 || z < -12.35 || z > 13.25) return false;
   return !colliders.some((box) => {
     if (!circleHitsBox(x, z, character.radius, box)) return false;
     const clearsTop = y >= box.maxY - 0.055;
     const clearsBottom = y + 1.08 <= box.minY + 0.03;
-    return !clearsTop && !clearsBottom;
+    const walkableRiser = box.stepUp && state.grounded && box.maxY - y <= STEP_HEIGHT + 0.001;
+    // A foot can leave a support before the collision capsule clears its edge.
+    // Permit depenetrating motion rather than trapping the cat on that edge.
+    const current = character.root.position;
+    const escaping = circleHitsBox(current.x, current.z, character.radius, box)
+      && signedBoxDistance(x, z, box) > signedBoxDistance(current.x, current.z, box) + 0.000001;
+    return !clearsTop && !clearsBottom && !walkableRiser && !escaping;
   });
 }
 
 function findSupport(x, z, minY, maxY) {
   let best = null;
   for (const surface of surfaces) {
-    const inset = 0.08;
+    const inset = surface.inset ?? 0.08;
     if (x < surface.minX + inset || x > surface.maxX - inset || z < surface.minZ + inset || z > surface.maxZ - inset) continue;
     if (surface.topY < minY || surface.topY > maxY) continue;
     if (!best || surface.topY > best.topY) best = surface;
@@ -1232,7 +1229,7 @@ function updateVertical(delta) {
   }
 
   if (state.grounded) {
-    const support = findSupport(position.x, position.z, position.y - 0.18, position.y + 0.16);
+    const support = findSupport(position.x, position.z, position.y - STEP_HEIGHT - 0.001, position.y + STEP_HEIGHT + 0.001);
     if (support) {
       position.y = support.topY;
       character.verticalVelocity = 0;
@@ -1245,7 +1242,19 @@ function updateVertical(delta) {
 
   const previousY = position.y;
   character.verticalVelocity -= GRAVITY * delta;
-  const nextY = previousY + character.verticalVelocity * delta;
+  let nextY = previousY + character.verticalVelocity * delta;
+  if (character.verticalVelocity > 0) {
+    // Sweep the body against undersides so jumping cannot phase through a loft.
+    const ceiling = colliders.filter((box) => (
+      circleHitsBox(position.x, position.z, character.radius, box)
+      && previousY + 1.08 <= box.minY + 0.01
+      && nextY + 1.08 >= box.minY
+    )).sort((a, b) => a.minY - b.minY)[0];
+    if (ceiling) {
+      nextY = ceiling.minY - 1.08;
+      character.verticalVelocity = 0;
+    }
+  }
   if (character.verticalVelocity <= 0) {
     const support = findSupport(position.x, position.z, nextY - 0.08, previousY + 0.06);
     if (support) {
@@ -1265,6 +1274,15 @@ function moveCharacter(delta) {
   const inputX = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
   const inputZ = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
   const hasInput = inputX !== 0 || inputZ !== 0;
+  if (hasInput && eatingTarget) {
+    eatingTarget.group.scale.setScalar(1);
+    eatingTarget = null;
+    state.eatingTime = 0;
+    if (state.forcedAction === "Bite") {
+      state.forcedAction = null;
+      state.actionTime = 0;
+    }
+  }
   if (hasInput && state.sitting) state.sitting = false;
   if (state.actionTime > 0) {
     state.actionTime = Math.max(0, state.actionTime - delta);
@@ -1280,7 +1298,7 @@ function moveCharacter(delta) {
   }
 
   const trotting = keys.has("ShiftLeft") || keys.has("ShiftRight");
-  const maxSpeed = (trotting ? 4.5 : 2.85) * speedMultiplier(state.satiety, state.chonk);
+  const maxSpeed = (trotting ? 4.95 : 3.15) * speedMultiplier(state.satiety, state.chonk) * (state.catnipTime > 0 ? CATNIP_SPEED : 1);
   temp.targetVelocity.copy(temp.desired).multiplyScalar(maxSpeed);
   const response = hasInput ? 7.2 : 10.5;
   character.velocity.lerp(temp.targetVelocity, 1 - Math.exp(-response * delta));
@@ -1316,7 +1334,7 @@ function moveCharacter(delta) {
     setAction("Sit", 0.3);
   } else if (actualSpeed > 0.06) {
     setAction("Walk", 0.2);
-    if (character.currentAction) character.currentAction.timeScale = THREE.MathUtils.clamp(actualSpeed / 2.15, 0.72, 1.75);
+    if (character.currentAction) character.currentAction.timeScale = THREE.MathUtils.clamp(actualSpeed / 1.55, 0.55, 3.3);
   } else if (state.idleTime > 5 && character.actions.Groom) {
     setAction("Groom", 0.55);
     if (character.currentAction) character.currentAction.timeScale = 1;
@@ -1332,7 +1350,18 @@ function updateFood(delta, speed) {
   let nearest = null;
   let nearestDistance = Infinity;
   for (const food of foods) {
-    if (!food.active) continue;
+    if (!food.active) {
+      if (food.boost && food.cooldown > 0) {
+        food.cooldown = Math.max(0, food.cooldown - delta);
+        if (food.cooldown === 0) {
+          food.active = true;
+          food.group.visible = true;
+          food.group.scale.setScalar(1);
+          food.consumed = 0;
+        }
+      }
+      continue;
+    }
     food.group.position.y = food.baseY + 0.015 + Math.sin(performance.now() * 0.0018 + food.phase) * 0.012;
     const distance = food.group.position.distanceTo(character.root.position);
     if (distance < nearestDistance) {
@@ -1343,25 +1372,42 @@ function updateFood(delta, speed) {
 
   ui.prompt.textContent = nearest && nearestDistance < 2.1 ? `${nearest.label}  ·  MOVE CLOSER` : "";
   const wrongHeight = nearest && Math.abs(nearest.baseY - character.root.position.y) > 0.34;
-  if (!nearest || nearestDistance > 0.88 || wrongHeight || speed > 0.7 || !state.grounded) {
+  const movementRequested = MOVEMENT_KEYS.some((key) => keys.has(key));
+  if (!nearest || nearestDistance > 0.88 || wrongHeight || speed > 0.7 || !state.grounded || movementRequested) {
+    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(1);
     state.eatingTime = 0;
+    eatingTarget = null;
     return;
   }
 
+  if (eatingTarget !== nearest) {
+    if (eatingTarget?.active) eatingTarget.group.scale.setScalar(1);
+    state.eatingTime = 0;
+    eatingTarget = nearest;
+  }
   ui.prompt.textContent = `EATING ${nearest.label}`;
   if (state.eatingTime === 0) triggerAction("Bite", 0.72);
   state.eatingTime += delta;
-  state.satiety = Math.min(100, state.satiety + delta * (nearest.satietyValue / 1.25));
+  const consumed = Math.min(delta, 1.25 - nearest.consumed);
+  nearest.consumed += consumed;
+  state.satiety = Math.min(100, state.satiety + consumed * (nearest.satietyValue / 1.25));
   nearest.group.scale.lerp(new THREE.Vector3(0.12, 0.12, 0.12), 1 - Math.exp(-4 * delta));
   if (state.eatingTime >= 1.25) {
     nearest.active = false;
     nearest.group.visible = false;
     state.eaten += 1;
-    state.levelFoodEaten += 1;
+    if (nearest.required) state.levelFoodEaten += 1;
     state.chonk = Math.min(100, state.chonk + nearest.chonkValue);
-    state.xp += 25;
+    state.xp += nearest.xp;
     state.eatingTime = 0;
-    showToast(`${nearest.label.toLowerCase()} secured · +25 XP`, 2.8);
+    eatingTarget = null;
+    if (nearest.boost) {
+      state.catnipTime = CATNIP_DURATION;
+      nearest.cooldown = CATNIP_DURATION + 4;
+      showToast("Catnip zoomies! +32% speed / +18% leap. Shift + Space for the long jump.", 5);
+    } else {
+      showToast(`${nearest.label.toLowerCase()} secured · +${nearest.xp} XP`, 2.8);
+    }
   }
 }
 
@@ -1513,7 +1559,7 @@ function completeLevel() {
 
 function updateGoal(delta, elapsed) {
   if (!activeGoal) return;
-  const allFoodFound = foods.every((food) => !food.active);
+  const allFoodFound = foods.every((food) => !food.required || !food.active);
   if (allFoodFound && !activeGoal.active) {
     activeGoal.active = true;
     activeGoal.light.intensity = 8;
@@ -1547,14 +1593,14 @@ function restartRun() {
 
 function updateCamera(delta) {
   temp.cameraTarget.copy(character.root.position);
-  temp.cameraTarget.y += 0.82;
+  temp.cameraTarget.y += 0.70;
   temp.cameraTarget.addScaledVector(character.velocity, 0.08);
 
-  const distance = 4.8;
+  const distance = 4.2;
   const horizontal = Math.cos(state.pitch) * distance;
   temp.cameraDesired.set(
     temp.cameraTarget.x + Math.sin(state.yaw) * horizontal,
-    temp.cameraTarget.y + 0.45 + Math.sin(state.pitch) * distance,
+    temp.cameraTarget.y + 0.30 + Math.sin(state.pitch) * distance,
     temp.cameraTarget.z + Math.cos(state.yaw) * horizontal,
   );
 
@@ -1574,6 +1620,27 @@ function updateCamera(delta) {
   camera.lookAt(temp.cameraTarget);
 }
 
+function updateCatVisual(delta) {
+  if (!character.model || !character.mixer) return;
+  character.mixer.update(delta);
+
+  const chonkWidth = 1 + THREE.MathUtils.smoothstep(state.chonk, 62, 100) * 0.07;
+  character.model.scale.set(1.34 * chonkWidth, 1.34, 1.34 * chonkWidth);
+
+  const support = findSupport(
+    character.root.position.x,
+    character.root.position.z,
+    -0.5,
+    character.root.position.y + 0.08,
+  );
+  const supportY = support?.topY ?? 0;
+  const airHeight = Math.max(0, character.root.position.y - supportY);
+  const shadowSpread = 1 + Math.min(airHeight, 2.5) * 0.12;
+  character.shadow.position.set(character.root.position.x, supportY + 0.012, character.root.position.z);
+  character.shadow.scale.set(1.05 * shadowSpread * chonkWidth, 0.82 * shadowSpread * chonkWidth, 1);
+  character.shadow.material.opacity = 0.28 * (1 - Math.min(airHeight / 3.5, 0.72));
+}
+
 function updateAtmosphere(delta, elapsed) {
   if (dust) {
     dust.rotation.y += delta * 0.012;
@@ -1581,6 +1648,11 @@ function updateAtmosphere(delta, elapsed) {
   }
   for (const plant of animatedPlants) plant.mesh.rotation.z = plant.base + Math.sin(elapsed * 0.7 + plant.phase) * 0.014;
   for (const lamp of lamps) lamp.light.intensity = 18 + Math.sin(elapsed * 7 + lamp.phase) * 0.35 + Math.sin(elapsed * 17 + lamp.phase) * 0.16;
+  for (const sign of worldSigns) {
+    const distance = sign.position.distanceTo(character.root.position);
+    sign.material.opacity = THREE.MathUtils.smoothstep(distance, 2.2, 3.8) * (1 - THREE.MathUtils.smoothstep(distance, 14, 20));
+    sign.visible = sign.material.opacity > 0.01;
+  }
 }
 
 function updateHud(speed) {
@@ -1600,6 +1672,8 @@ function updateHud(speed) {
   ui.condition.textContent = !profile.allowed ? "LIMITED" : profile.impulse > 5.7 ? "OPTIMAL" : "MANAGING";
   ui.jumpReadiness.textContent = profile.label;
   ui.jumpReadiness.style.color = profile.allowed ? "#b9d6b8" : "#e48b6f";
+  ui.boost.hidden = state.catnipTime <= 0;
+  ui.boost.textContent = `CATNIP ZOOMIES ${Math.ceil(state.catnipTime)}s / +32% SPEED / +18% LEAP`;
   ui.state.textContent = !state.grounded
     ? "AIRBORNE"
     : state.forcedAction === "Claw"
@@ -1615,8 +1689,10 @@ function updateHud(speed) {
               : state.idleTime > 5
                 ? "GROOMING"
                 : "CURIOUS";
-  const left = foods.filter((food) => food.active).length;
-  ui.objective.textContent = left ? `Find supper · ${left} scents remain` : "Reach the glowing pet door";
+  const remaining = foods.filter((food) => food.active && food.required);
+  const left = remaining.length;
+  const upstairs = remaining.some((food) => food.baseY > 2);
+  ui.objective.textContent = left ? `Find supper · ${left} scents${upstairs ? " / check upstairs" : " remain"}` : "Reach the glowing pet door";
   ui.levelProgress.textContent = `LEVEL ${state.level + 1} OF ${LEVELS.length} · XP ${state.xp}`;
 }
 
@@ -1638,14 +1714,15 @@ function animate() {
   let speed = 0;
   updateMovingPlatforms(elapsed);
   if (state.started) {
+    if (!state.transitioning && !state.gameComplete) state.catnipTime = Math.max(0, state.catnipTime - delta);
     speed = moveCharacter(delta);
     updateFood(delta, speed);
     updateHazards(delta, elapsed);
     updateCheckpoints(elapsed);
     updateGoal(delta, elapsed);
   }
-  if (character.mixer) character.mixer.update(delta);
   updateCamera(delta);
+  updateCatVisual(delta);
   updateAtmosphere(delta, elapsed);
   updateHud(speed);
   updateToast(delta);
@@ -1655,10 +1732,6 @@ function animate() {
 function setupInput() {
   addEventListener("keydown", (event) => {
     keys.add(event.code);
-    if (event.code === "KeyC" && !event.repeat) {
-      cycleCoat();
-      event.preventDefault();
-    }
     if (state.started && !event.repeat) {
       if (event.code === "Space") requestJump();
       if (event.code === "KeyQ") toggleSit();
@@ -1702,14 +1775,13 @@ async function init() {
   buildSky();
   buildLevel(0, false);
   addAtmosphere();
-  setupCoatControls();
   setupInput();
   camera.position.set(0, 2.2, 12);
   camera.lookAt(0, 0.8, 7);
   await loadCat();
   state.ready = true;
   ui.enter.disabled = false;
-  ui.loadStatus.textContent = `${Math.round(character.triangleCount / 1000)}K-triangle cat · 3 generated levels · 7 actions`;
+  ui.loadStatus.textContent = "Turkish Van ready · Three rooms to explore";
   ui.enter.addEventListener("click", () => {
     state.started = true;
     state.runStartedAt = performance.now();
@@ -1733,7 +1805,7 @@ window.__megaChonk = {
     if (Math.abs(dx) + Math.abs(dz) > 0.0001) state.yaw = Math.atan2(-dx, -dz);
     return state.yaw;
   },
-  setCoat: (style) => applyCoat(style),
+  setCoat: (style) => style === "van",
   loadLevel: (index) => buildLevel(THREE.MathUtils.clamp(Math.round(index), 0, LEVELS.length - 1), false),
   setCondition: (satiety, chonk) => {
     state.satiety = THREE.MathUtils.clamp(satiety, 0, 100);
@@ -1761,6 +1833,7 @@ window.__megaChonk = {
     jumps: state.jumps,
     satiety: state.satiety,
     chonk: state.chonk,
+    catnipTime: state.catnipTime,
     position: character.root.position.toArray(),
     checkpoint: character.checkpoint.toArray(),
     foods: foods
@@ -1770,7 +1843,10 @@ window.__megaChonk = {
         active: food.active,
         position: [food.group.position.x, food.baseY, food.group.position.z],
       }))
-      .filter((food) => food.active),
+      .filter((food) => food.active && foods[food.index].required),
+    snacks: foods.filter((food) => !food.required).map((food) => ({ label: food.label, active: food.active, boost: food.boost, position: [food.group.position.x, food.baseY, food.group.position.z] })),
+    verticalRoutes,
+    surfaces: surfaces.map(({ minX, maxX, minZ, maxZ, topY }) => ({ minX, maxX, minZ, maxZ, topY })),
     goal: activeGoal
       ? { active: activeGoal.active, position: activeGoal.position.toArray() }
       : null,
@@ -1805,6 +1881,10 @@ window.__megaChonk = {
     eaten: state.eaten,
     coat: state.coat,
     triangles: character.triangleCount,
+    visualMode: character.visualMode,
+    modelName: character.model?.name ?? null,
+    animationClips: character.clipCount,
+    skinnedMeshes: character.skinnedMeshCount,
     level: state.level,
     xp: state.xp,
     grounded: state.grounded,
@@ -1812,7 +1892,10 @@ window.__megaChonk = {
     forcedAction: state.forcedAction,
     jumpAllowed: jumpProfile().allowed,
     jumpImpulse: Number(jumpProfile().impulse.toFixed(3)),
-    foodsRemaining: foods.filter((food) => food.active).length,
+    foodsRemaining: foods.filter((food) => food.active && food.required).length,
+    catnipTime: Number(state.catnipTime.toFixed(2)),
+    speedBoost: state.catnipTime > 0 ? CATNIP_SPEED : 1,
+    upstairsHeight: Math.max(0, ...verticalRoutes.map((route) => route.height)),
     runSeed: state.runSeed,
     layoutSignature: colliders.slice(-6).map((box) => `${box.minX.toFixed(2)},${box.minZ.toFixed(2)}`).join("|"),
     levelObjects: levelRoot.children.length,

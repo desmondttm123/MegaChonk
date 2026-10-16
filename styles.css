@@ -97,58 +97,6 @@ kbd { font: inherit; }
 
 .boot-copy { position: relative; margin: 24px 0 20px; color: var(--muted); font-style: italic; }
 
-.coat-picker {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 9px;
-  margin-bottom: 25px;
-}
-
-.coat-picker-label {
-  color: var(--muted);
-  font: 600 9px/1 "Segoe UI", sans-serif;
-  letter-spacing: .2em;
-  text-transform: uppercase;
-}
-
-.coat-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
-
-.coat-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 86px;
-  padding: 7px 10px 7px 8px;
-  border: 1px solid rgba(231,213,177,.14);
-  border-radius: 999px;
-  background: rgba(4,10,12,.28);
-  color: var(--muted);
-  cursor: pointer;
-  font: 600 9px/1 "Segoe UI", sans-serif;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-
-.coat-option:hover { color: var(--ink); border-color: rgba(230,173,98,.48); transform: translateY(-1px); }
-.coat-option.is-active { color: var(--ink); border-color: var(--amber); background: rgba(230,173,98,.12); }
-.coat-option:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-
-.coat-swatch {
-  width: 19px;
-  height: 19px;
-  flex: 0 0 auto;
-  border: 1px solid rgba(255,255,255,.26);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
-}
-
-.coat-swatch-van { background: linear-gradient(135deg, #eee9df 0 58%, #6d2d12 59%); }
-.coat-swatch-tuxedo { background: linear-gradient(135deg, #17191a 0 54%, #f0ede5 55%); }
-.coat-swatch-calico { background: conic-gradient(#f0ede4 0 28%, #bb5b20 29% 57%, #202020 58% 76%, #f0ede4 77%); }
-.coat-swatch-tabby { background: repeating-linear-gradient(160deg, #cf6a21 0 5px, #6f2e11 6px 8px, #e68b3a 9px 13px); }
-
 #enter-game,
 #restart-game {
   position: relative;
@@ -176,6 +124,8 @@ kbd { font: inherit; }
 }
 
 .hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; transition: opacity 500ms ease; }
+.boot-credits { position: relative; margin: 12px 0 0; font: 11px/1.4 Georgia, serif; }
+.boot-credits a { color: var(--muted); text-underline-offset: 3px; }
 .hud.is-hidden { opacity: 0; }
 
 .status-panel,
@@ -212,11 +162,11 @@ kbd { font: inherit; }
 .ability-panel > span:first-child { color: #b9d6b8; letter-spacing: .18em; }
 .ability-panel strong { color: var(--ink); font-weight: 500; }
 .ability-panel kbd { color: var(--amber); }
+.ability-panel .boost-status { max-width: 260px; padding: 7px 9px; border: 1px solid #88b67b; background: rgba(49, 88, 44, .45); color: #cfefb6; line-height: 1.6; }
+.boost-status[hidden] { display: none; }
 
 .controls-card { left: 24px; bottom: 24px; display: flex; gap: 15px; padding: 10px 13px; color: var(--muted); font: 500 10px/1 "Segoe UI", sans-serif; }
 kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
-.controls-card b { color: var(--amber); font: inherit; }
-
 .reticle { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: rgba(245,237,216,.62); transform: translate(-50%,-50%); box-shadow: 0 0 10px rgba(255,255,255,.55); }
 .prompt,
 .toast { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; transition: opacity 220ms ease, transform 220ms ease; }
@@ -259,5 +209,4 @@ kbd { color: var(--ink); font-size: 9px; letter-spacing: .05em; }
   .controls-card,
   .ability-panel { display: none; }
   .boot-screen h1 { letter-spacing: .06em; }
-  .coat-options { max-width: 290px; }
 }

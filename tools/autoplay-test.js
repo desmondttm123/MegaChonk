@@ -27,6 +27,13 @@ function routeLength(start, route) {
 }
 
 function makeBlockedTest(navigation, target) {
+  const navigationHeight = target[1] > 2 && navigation.position[1] > 2 ? 2.7 : 0;
+  const startingPlatform = navigation.grounded && navigation.position[1] > 0.2
+    ? navigation.colliders.find((collider) => (
+      navigation.position[0] >= collider.minX && navigation.position[0] <= collider.maxX
+      && navigation.position[2] >= collider.minZ && navigation.position[2] <= collider.maxZ
+      && Math.abs(collider.maxY - navigation.position[1]) < 0.12
+    )) : null;
   const targetPlatform = navigation.colliders.find((collider) => (
     target[1] > 0.2
     && target[0] >= collider.minX
@@ -40,7 +47,9 @@ function makeBlockedTest(navigation, target) {
     if (x < BOUNDS.minX || x > BOUNDS.maxX || z < BOUNDS.minZ || z > BOUNDS.maxZ) return true;
 
     for (const collider of navigation.colliders) {
-      if (collider === targetPlatform) continue;
+      if (collider === targetPlatform || collider === startingPlatform) continue;
+      // Plan on the destination floor, not the cat's transient jump height.
+      if (navigationHeight >= collider.maxY - 0.06 || navigationHeight + 1.08 <= collider.minY + 0.03) continue;
       const clearance = 0.5;
       if (
         x > collider.minX - clearance
@@ -188,11 +197,27 @@ function planRoute(navigation, target) {
   }
 
   async function driveTo(target, options = {}) {
+    let initial = await navigation();
+    const stairs = initial.verticalRoutes[0]?.stairs;
+    if (!options.routeStage && stairs) {
+      const ascending = target[1] > 2 && initial.position[1] < 2;
+      const descending = target[1] < 1 && initial.position[1] > 2;
+      if (ascending || descending) {
+        const stages = ascending ? [stairs.entry, stairs.top] : [stairs.top, stairs.entry];
+        for (const [index, waypoint] of stages.entries()) {
+          const result = await driveTo(waypoint, {
+            level: options.level, routeStage: true,
+            direct: descending || index === 1, stairs: true, timeout: 25000, tolerance: 0.38,
+          });
+          if (!result.reached) return result;
+        }
+      }
+    }
     const startedAt = Date.now();
     const expectedLevel = options.level;
     const targetIndex = options.foodIndex;
     let nav = await navigation();
-    let route = planRoute(nav, target);
+    let route = options.direct ? [target] : planRoute(nav, target);
     let waypointIndex = 0;
     let lastPlan = Date.now();
     let lastJump = 0;
@@ -221,7 +246,7 @@ function planRoute(navigation, target) {
       }
 
       if (nav.bonks !== lastBonks || Date.now() - lastPlan > 4200) {
-        route = planRoute(nav, target);
+        route = options.direct ? [target] : planRoute(nav, target);
         waypointIndex = 0;
         lastPlan = Date.now();
         lastBonks = nav.bonks;
@@ -242,8 +267,8 @@ function planRoute(navigation, target) {
         lastMotionAt = Date.now();
       }
       const stalled = Date.now() - lastMotionAt > 550;
-      const platformApproach = target[1] > 0.2 && targetDistance < 3.1;
-      if (nav.grounded && Date.now() - lastJump > 580 && (stalled || platformApproach)) {
+      const platformApproach = target[1] > 0.2 && target[1] < 2 && targetDistance < 3.1;
+      if (!options.stairs && nav.grounded && Date.now() - lastJump > 580 && (stalled || platformApproach)) {
         await page.keyboard.press("Space");
         lastJump = Date.now();
         if (stalled) lastMotionAt = Date.now();
@@ -270,7 +295,7 @@ function planRoute(navigation, target) {
     await page.waitForFunction(() => window.__megaChonk.state.transitioning === false, null, { timeout: 5000 });
 
     const overallStart = Date.now();
-    while (Date.now() - overallStart < 180000) {
+    while (Date.now() - overallStart < 300000) {
       let nav = await navigation();
       if (nav.gameComplete) break;
       if (nav.transitioning) {
@@ -287,7 +312,7 @@ function planRoute(navigation, target) {
       while (nav.level === level && nav.foods.length && !nav.gameComplete) {
         const candidates = nav.foods.map((food) => {
           const route = planRoute(nav, food.position);
-          return { food, route, distance: routeLength(nav.position, route) };
+          return { food, route, distance: routeLength(nav.position, route) + (food.position[1] > 2 && nav.position[1] < 2 ? 20 : 0) };
         }).sort((a, b) => a.distance - b.distance);
         const selected = candidates[0];
         console.log(`[autoplay] Routing to ${selected.food.label} (${selected.distance.toFixed(1)}m planned)`);
