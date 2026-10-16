@@ -22,6 +22,10 @@ Then open `http://127.0.0.1:4173`.
 
 For local development, keep the server running; opening `index.html` directly will not load JavaScript modules reliably. The hosted version needs no local server.
 
+## Contributor Handoff
+
+Read [AGENTS.md](AGENTS.md) for repository instructions, [MEMORY.md](MEMORY.md) for the current state and where work stopped, and [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and release steps. Contributors should update the memory after meaningful changes so the next person or coding agent can continue without the original chat.
+
 ## Deployment
 
 The [Deploy Mega Chonk workflow](https://github.com/desmondttm123/MegaChonk/actions/workflows/pages.yml) deploys pushes to `main` automatically using GitHub Pages. It can also be started manually from the Actions tab. Pages must use **GitHub Actions** as its deployment source in the repository settings.
