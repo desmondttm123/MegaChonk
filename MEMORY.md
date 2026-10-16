@@ -11,7 +11,7 @@ deployment status feed.
 - HUD/boot layouts now fit portrait and landscape phones, pointer lock is not needed on touch, and rendering pixel ratio is capped at 1.25 on touch/coarse-pointer devices. The cat asset and gameplay condition/jump rules were not replaced or simplified.
 - Mobile emulation, desktop smoke/camera, vertical challenges, full autoplay seed `424242`, and local Pages packaging were checked. Details and physical-device follow-up: [mobile verification](docs/mobile-controls-verification.md).
 - Full autoplay after shared-input integration completed with 12 meals, 600 XP, seven jumps, zero bumps, about 2m 32s. It used keyboard navigation, not touch-only autoplay. Isolated mobile tests verify touch actions and common physics separately.
-- The user authorized committing and pushing the entire mobile contribution on 2026-10-16. Release is in progress: verify the Pages deployment and live mobile/package tests before recording it as released. Physical Android/iPhone Safari checks remain outstanding; do not claim hardware performance from emulation.
+- Released the entire mobile contribution as `39d9265` on 2026-10-16 after the user authorized the push. The Pages workflow succeeded, the live manifest matched that revision, and hosted mobile, camera, and Pages tests all passed without browser errors. This handoff update adds the release evidence and refreshed live captures, not runtime changes. Physical Android/iPhone Safari checks remain outstanding; do not claim hardware performance from emulation.
 - The previous mouse-spike/collision-recovery fix is `cecfb02` and was tested locally/live. Artist instructions were subsequently checked in as `a7a626d`; the active model/pipeline remains unchanged.
 - Multiplayer and extra coat variants are still deferred, not approved next tasks. Wait for user feedback or a new request rather than implementing them automatically.
 
@@ -72,6 +72,7 @@ fully random building generator. Floors and collision bounds are world-space.
 | `ef96e40` | Check-in of older experimental assets/tools; active gameplay remains the above version |
 | `ee37670` | Repository contributor instructions, persistent memory, setup/test/release handoff |
 | `a7a626d` | Artist instructions covering manual/source ownership, rig/material/export constraints, and delivery |
+| `39d9265` | Mobile joystick/look/actions, responsive phone layouts, lifecycle cleanup, automated touch verification; deployed and tested live |
 
 Mouse regression details: old code directly applied every `movementX/Y` event;
 an oversized sample rotated yaw by -28.2 radians. A small furniture-corner orbit
@@ -122,7 +123,7 @@ those are not the current runtime specification.
 - `python tools/build_pages.py` follows actual module imports and packages only runtime assets/licenses into ignored `dist/`, with revision/hash metadata.
 - Do not upload the whole repo as the website: Blender/FBX/STL, experiments, sprite sheets, and test captures are not required at runtime.
 - CI checks module syntax and builds/deploys; it does not run the Playwright regression suite. Confirm the workflow and live build manifest when verifying a release.
-- The last live revision personally tested in the preceding session was `cecfb02`. Do not assume that is the current live revision after subsequent pushes.
+- Runtime revision `39d9265cb67a4a3453ee00f544b922a523910f09` was tested live on 2026-10-16. [Pages workflow 38854321559](https://github.com/desmondttm123/MegaChonk/actions/runs/38854321559) succeeded; the served manifest matched. Hosted mobile, camera, and Pages suites passed. Later evidence-only commits do not change that tested runtime; inspect the current manifest/history for the latest deployed commit.
 - The latest local build after adding touch controls contains 27 runtime files, approximately 12.47 MB; no model regeneration was needed. CI also checks the new touch module's syntax.
 
 ## Deferred Or Limited
@@ -131,7 +132,7 @@ those are not the current runtime specification.
 - Tuxedo, calico, and orange-tabby options were requested earlier, then superseded by using only the Turkish Van to save resources. No coat selector is currently shipped.
 - Phone controls are implemented and tested with browser-dispatched multi-touch in Windows Edge/Chromium emulation. Actual Android/iOS hardware and Safari behavior/performance still require manual verification; desktop browser test launchers still assume Windows Edge.
 - The game remains a stylized prototype, not production AAA quality. Continue improving anatomy/animation and environment quality only against a concrete request.
-- The mobile contribution's release is authorized; no further feature or bug implementation is currently approved. After deployment verification, physical-phone feedback is the next handoff consideration.
+- The mobile contribution is released; no further feature or bug implementation is currently approved. Physical-phone feedback is the next handoff consideration.
 
 ## Updating This Handoff
 

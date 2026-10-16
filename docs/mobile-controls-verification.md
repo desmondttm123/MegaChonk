@@ -62,6 +62,18 @@ well as checking element bounds in the automated suite.
 
 ## Release Status
 
-The user authorized committing and pushing all pending changes on 2026-10-16.
-Deployment and live mobile/package verification are in progress; their exact
-revision and results will be recorded after the Pages workflow succeeds.
+Released on 2026-10-16 as `39d9265cb67a4a3453ee00f544b922a523910f09` after
+the user authorized committing and pushing all pending changes.
+[Pages workflow 38854321559](https://github.com/desmondttm123/MegaChonk/actions/runs/38854321559)
+succeeded, and the public `build-manifest.json` reported the same revision.
+
+All three suites passed against https://desmondttm123.github.io/MegaChonk/:
+
+- `tools/mobile-controls-test.js`: all four phone layouts, three simultaneous touches, zero pointer-lock requests, desktop mode switching, no browser errors. Settled walk/trot speeds were approximately 3.10/4.84; the camera test swipe changed yaw by -0.336 radians.
+- `tools/camera-controls-test.js`: native mouse input, spike rejection, focus recovery, three capture cycles, 30/60/144 FPS consistency, and furniture-corner recovery; no browser errors.
+- `tools/pages-test.js`: 27 runtime files, all three rooms, WASD movement/jumping, attribution, and the canonical 193,136-triangle cat; no browser errors. The served cat SHA-256 was `a2e47a69b82af295e3d30f8d2186760907e827f02c72c85ced2fa1a0bebe126d`.
+
+Live portrait, landscape, and desktop captures were visually reviewed and saved
+under `assets/previews/`. The follow-up evidence commit updates only these
+captures and handoff notes, not the tested runtime. Physical-phone checks above
+remain outstanding.
