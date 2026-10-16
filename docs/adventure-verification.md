@@ -1,9 +1,9 @@
 # Adventure Verification
 
 Local tests: 2026-10-16 (Asia/Singapore), based on `3c9260e`.
-The user authorized pushing all changes on 2026-10-17. Release and hosted
-verification are in progress; exact deployment evidence will be recorded below
-after the Pages workflow and live checks succeed.
+Released on 2026-10-17 as `74b013e4b0e12fd427dded7984909fe6741b095b` after
+the user authorized pushing all changes. Hosted checks are recorded below;
+the earlier campaign/asset checks remain local evidence.
 
 ## Completed Campaign Checks
 
@@ -56,6 +56,20 @@ events in Chromium emulation; they are not physical-device or Safari tests.
 - The equipment label overlapped the touch toggle at 568x320. Short landscape layouts now place equipment in the free center-bottom area between controls.
 - On the last suction loss, virtual controls could remain visible for one render frame. Loss/victory/transitions now synchronously release/hide touch gameplay input.
 - A fading retry overlay could swallow an immediate attack after restart. Hidden transition/completion overlays now stop accepting pointer events immediately.
+
+## Hosted Release
+
+[Pages workflow 38943348005](https://github.com/desmondttm123/MegaChonk/actions/runs/38943348005)
+succeeded, including syntax/pure-rule checks. The public manifest at
+https://desmondttm123.github.io/MegaChonk/ reported the exact released revision.
+
+- `tools/pages-test.js` passed against the live URL: 30 runtime files, canonical model hash, attribution, all three rooms, movement/jumping, no browser errors.
+- `tools/mobile-controls-test.js` passed live: four phone layouts, three simultaneous touches, boss last-life retry and finishing claw, completion/restart, desktop switching, zero pointer-lock requests, no browser errors.
+- `tools/camera-controls-test.js` passed live: native/small mouse input, spike/focus/capture guards, 30/60/144 FPS consistency, and furniture-corner recovery, with no browser errors.
+- A fresh hosted browser entered an isolated boss encounter with no collar/pendant, full boss health, and nine lives. The existing keyboard boss driver defeated it with eight attack inputs in approximately 14 seconds, keeping all nine lives and recording no browser errors. It did not change positions, boss phases, or health during combat. This is a full boss fight, not a hosted replay of the three-room campaign.
+
+Live desktop and portrait/landscape screenshots were reviewed and refreshed.
+The release-evidence follow-up contains only notes/captures, not runtime changes.
 
 ## Limits
 

@@ -84,6 +84,6 @@ keyboard autoplay seeds, and runtime-only Pages packaging. Tests that place the
 cat or set boss phases are scenario checks; only the keyboard boss driver and
 campaign autoplay establish control-driven completion.
 
-The user authorized publication on 2026-10-17. See [adventure verification](adventure-verification.md)
+Released on 2026-10-17. See [adventure verification](adventure-verification.md)
 for release status and evidence. Physical-phone/Safari testing remains separate
 from Chromium phone emulation.

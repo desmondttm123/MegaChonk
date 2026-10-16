@@ -7,11 +7,11 @@ deployment status feed.
 
 ## Resume Here
 
-- Latest request: fair generated jump obstacles, a reusable vacuum boss after room three, persistent accessories, and enemies with guaranteed drops. The local adventure implementation is described in [adventure system](docs/adventure-system.md).
+- Latest released request: fair generated jump obstacles, a reusable vacuum boss after room three, persistent accessories, and enemies with guaranteed drops. The adventure implementation is described in [adventure system](docs/adventure-system.md).
 - The third pet door now starts the vacuum encounter instead of completing the run. Claw the rear filter; front suction costs one of nine lives. Retry after nine losses resets only the fight. The boss remains winnable without equipment.
 - Room-tier collars add pace and survive combat deaths; pendants add claw damage/hunger efficiency and are lost on combat death. Both persist across rooms for the current run. Optional clockwork mice warn/pounce and drop a snack or pendant on defeat. Ordinary environmental bumps remain nonlethal.
 - Shared jump rules validate generated hurdles/bridge approaches and reserve takeoff/landing space. Clear objective corridors and stairs remain available to hungry/heavy cats; equipment does not bypass their jump restrictions.
-- The user authorized pushing all adventure changes on 2026-10-17. Release is in progress; verify the Pages workflow, public manifest, and relevant hosted behavior before recording it as released. Verification results and limitations are in [adventure verification](docs/adventure-verification.md). The active cat asset is unchanged; desktop/touch controls remain supported.
+- Published all adventure changes as `74b013e` on 2026-10-17 after the user authorized the push. The Pages workflow and public manifest matched; hosted Pages/mobile/camera checks and a no-equipment keyboard boss victory passed with no browser errors. The evidence follow-up changes only notes/captures, not runtime code. Details and limitations: [adventure verification](docs/adventure-verification.md). The active cat asset is unchanged.
 - Adventure rules/integration, 90 generated layouts, smoke/camera, vertical/visual, expanded phone controls, and local Pages checks passed. Full campaign seeds `424242` and `765432` both finished with 12 meals, 850 XP, no deaths, and the boss defeated; a separate keyboard fight also won without any equipment. Scenario setup is explicitly distinguished from no-teleport autoplay in the verification notes.
 - The previous mobile release is `39d9265` with evidence-only follow-up `3c9260e`; both deployed successfully. The mouse-spike fix is `cecfb02`. Physical Android/iPhone Safari checks remain outstanding; do not claim hardware performance from emulation.
 - Multiplayer and extra coat variants are still deferred, not approved next tasks. Wait for user feedback or a new request rather than implementing them automatically.
@@ -79,7 +79,7 @@ fully random building generator. Floors and collision bounds are world-space.
 | `a7a626d` | Artist instructions covering manual/source ownership, rig/material/export constraints, and delivery |
 | `39d9265` | Mobile joystick/look/actions, responsive phone layouts, lifecycle cleanup, automated touch verification; deployed and tested live |
 | `3c9260e` | Successful live mobile/camera/Pages verification evidence and refreshed captures; same runtime as `39d9265` |
-| Local, uncommitted | Vacuum finale, equipment/death/loot, clockwork enemies, shared fair-jump planning, combat tests and contributor guidance |
+| `74b013e` | Vacuum finale, equipment/death/loot, clockwork enemies, shared fair-jump planning, combat tests and contributor guidance; deployed and checked live |
 
 Mouse regression details: old code directly applied every `movementX/Y` event;
 an oversized sample rotated yaw by -28.2 radians. A small furniture-corner orbit
@@ -132,7 +132,8 @@ those are not the current runtime specification.
 - Do not upload the whole repo as the website: Blender/FBX/STL, experiments, sprite sheets, and test captures are not required at runtime.
 - CI checks module syntax and builds/deploys; it does not run the Playwright regression suite. Confirm the workflow and live build manifest when verifying a release.
 - Runtime revision `39d9265cb67a4a3453ee00f544b922a523910f09` passed hosted mobile/camera/Pages checks on 2026-10-16. The evidence-only follow-up `3c9260e62025a55bf204a28bf35843ff7e12ced8` also deployed successfully, with the public manifest and unchanged runtime hashes checked. [Final release workflow](https://github.com/desmondttm123/MegaChonk/actions/runs/38854555719).
-- That mobile deployment has 27 runtime files, approximately 12.47 MB. The verified local adventure package has 30 runtime files, approximately 12.51 MB. No model regeneration was needed. CI now includes adventure module syntax and pure rules tests, but not browser autoplay. This does not mean the new CI workflow has run on GitHub yet.
+- Adventure runtime `74b013e4b0e12fd427dded7984909fe6741b095b` was verified live on 2026-10-17 after [workflow 38943348005](https://github.com/desmondttm123/MegaChonk/actions/runs/38943348005) succeeded. Hosted Pages, mobile controls including boss retry/finishing claw, and desktop camera suites passed. A fresh, isolated boss start was won by keyboard without equipment: eight attack inputs, nine lives left, about 14 seconds, no browser errors. The full campaign was verified locally, not replayed on the host.
+- The adventure release has 30 runtime files, approximately 12.51 MB, with the unchanged canonical model hash. CI syntax and pure adventure-rule checks succeeded; browser tests were run separately, not by CI. Later notes/capture-only commits retain the tested runtime; inspect current history/manifest for the latest deployment ID.
 
 ## Deferred Or Limited
 
@@ -140,7 +141,7 @@ those are not the current runtime specification.
 - Tuxedo, calico, and orange-tabby options were requested earlier, then superseded by using only the Turkish Van to save resources. No coat selector is currently shipped.
 - Phone controls are implemented and tested with browser-dispatched multi-touch in Windows Edge/Chromium emulation. Actual Android/iOS hardware and Safari behavior/performance still require manual verification; desktop browser test launchers still assume Windows Edge.
 - The game remains a stylized prototype, not production AAA quality. Continue improving anatomy/animation and environment quality only against a concrete request.
-- The adventure contribution's release is authorized and in progress. New bosses, more levels, saved inventories, and additional enemy types are not automatically approved next tasks. Physical-phone playtesting and user feedback remain useful follow-up.
+- The adventure contribution is released. New bosses, more levels, saved inventories, and additional enemy types are not automatically approved next tasks. Physical-phone playtesting and user feedback remain useful follow-up.
 
 ## Updating This Handoff
 
