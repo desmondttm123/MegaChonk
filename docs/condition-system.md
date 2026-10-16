@@ -52,7 +52,7 @@ Tested locally on 2026-10-17 using headless Microsoft Edge/Playwright:
 | Condition browser integration | Passed interpolated eating head motion, immediate movement interruption, proportional partial bites, no duplicate awards, two-snack plate activation, objective separation, fat-blocked slim entry, lean entry, safe post-reward exit, latched plate, scratch workout, lean feeding/refill, starvation/charm loss/recovery, nine-life continue and reload persistence |
 | Actual flat-ground sprint jumps | Approximately 5.28 units at 58 satiety/48 chonk versus 2.41 at 58/84; isolated clear-lane scenario starts, normal keyboard movement/physics |
 | Campaign seed 424242 | All 12 meals and boss, 850 XP, 6 jumps, no deaths/bonks; keyboard autoplay from spawn, no objective teleports/condition injection |
-| Campaign seed 765432 | All 12 meals and boss, 850 XP, 5 jumps, no deaths/bonks; same full-run boundaries |
+| Campaign seed 765432 | All 12 meals and boss, 850 XP, 4 jumps on final rerun (5 earlier), no deaths/bonks; same full-run boundaries |
 | Generated layouts | 90 passed, all three rooms, counts 25/30/37, protected routes/hazards/enemies and moving-platform carry |
 | Adventure | Equipment, rich enemy loot, deaths, conservative hurdle clearance, nine boss losses/retry and no-equipment keyboard victory passed |
 | Vertical routes | All stairs, hungry/heavy stairs, failed unboosted shortcut, successful boosted perch/descending shelves, expiry and gallery underside passed |
@@ -66,10 +66,25 @@ after its boss-layout captures; a fresh bounded-timeout run passed the entire
 suite. Physical Android/iPhone Safari and human balance playtesting remain
 outstanding. Automated checks are not a claim of AAA art or hardware performance.
 
+Both campaign seeds were repeated after final polish. The Pages verifier now
+handles Chromium/CDP eviction of a large response body with an explicit fetch
+and the same manifest/local-model hash checks, rather than an unhandled promise.
+
 The canonical GLB and Blender project were not regenerated or changed. Existing
 visual-cat sampling passed floor contact and all source animation poses; lean
 and heavy runtime captures were also reviewed. Deployment evidence is recorded
 in `MEMORY.md` after the authorized push and live checks.
+
+Gameplay commit `c401b650238575b5dc795247b1b7471282b20cd6` deployed successfully
+through [Pages run 38948118700](https://github.com/desmondttm123/MegaChonk/actions/runs/38948118700).
+The public manifest matched that revision and contained 33 runtime files.
+Hosted Pages, condition integration, phone controls/layouts and mouse camera
+checks passed with no browser errors. The live condition test measured 5.276
+units for a normal sprint jump and 2.416 when heavy, earned weight through two
+snacks to open the plate, and verified 110 banked points after reload. Boss
+loss/retry/victory were also exercised through touch controls; these were
+isolated boss scenarios, not a claim of a full hosted campaign. The evidence
+follow-up changes notes/captures only.
 
 ## Extension Points
 
