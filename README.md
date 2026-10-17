@@ -73,7 +73,9 @@ Find every **supper objective** in a room, then reach the glowing pet door. Opti
 - Satiety at or below 8 blocks leaping; chonk at or above 90 blocks it too. Healthy jumps travel farther than before, and progressive weight reduces both pace and distance. The torso visibly fills out as chonk rises, without enlarging the head or paws.
 - Energy drains gradually: roughly 27 satiety per minute of continuous trotting, far slower than eating. Warnings appear at 20 and 8. Six active seconds at zero costs a life and the pendant, then restores energy at the checkpoint. Rooms have nine lives and a checkpoint continue; the boss has its own nine-life fight.
 - Every room has an optional **slim stash** (60 chonk or less) and **heavy stash** (hold the plate at 64 chonk or more). Weight gates latch open, and slim filters always let occupants out. These puzzles never block required meals or the pet door.
-- Claw the marked scratch post near the entrance to lose 4 chonk at a cost of 1.5 energy. The nearby lean supper gives 14 energy and no fat, refilling after 32 seconds. Rich snacks near the weight plate refill after 30 seconds. Normal movement also gradually trims weight.
+- Claw the marked scratch post near the entrance to lose 4 chonk at a cost of 1.5 energy. The nearby lean supper gives 14 energy and no fat, refilling after 32 seconds.
+- Each room has two rich-food bowls beside the weight plate. They add 9 chonk and refill every 20 seconds, so the cat can keep eating to reach its fattest form without advancing supper progress.
+- Walking gradually trims weight; trotting/running trims it much faster, and every successful jump burns another 0.45 chonk.
 - Extra weight progressively shortens jumps without making a normal run unwinnable.
 - Every room has an oak staircase and an upstairs gallery at 2.7 game units, with one required meal upstairs. Walk onto the stairs; repeated jumping is not needed.
 - The green catnip bowl upstairs grants 18 seconds of +32% speed and +18% jump impulse. Use `Shift` + `Space` (or **Trot** + **Jump** on touch) from the marked balcony opening to reach the bonus perch, then descend the shelves.

@@ -33,6 +33,14 @@ const root = path.resolve(__dirname, "..");
       await page.waitForTimeout(220);
       return snap();
     };
+    for (let level = 0; level < 3; level++) {
+      await page.evaluate((index) => window.__megaChonk.loadLevel(index), level);
+      const supplies = (await page.evaluate(() => window.__megaChonk.navigation())).snacks
+        .filter((food) => food.nutrition === "snack" && food.regrow > 0);
+      assert.equal(supplies.length, 2, `Level ${level + 1} must have two regenerating rich-food bowls`);
+      assert.ok(supplies.every((food) => food.regrow === 20));
+    }
+    await page.evaluate(() => window.__megaChonk.loadLevel(0));
     const nav = await page.evaluate(() => window.__megaChonk.navigation());
     const snack = nav.snacks.find((food) => food.label === "CREAM BITES");
     await place(snack.position);
@@ -70,6 +78,8 @@ const root = path.resolve(__dirname, "..");
     await walk(11, 10.3, 700);
     await page.waitForTimeout(850);
     assert.equal((await snap()).bodyTrials.nooks[1].latched, true, "Naturally gained snack weight must activate the plate");
+    await page.waitForFunction(() => window.__megaChonk.navigation().snacks.find((food) => food.label === "CREAM BITES").active, null, { timeout: 25000 });
+    assert.equal((await page.evaluate(() => window.__megaChonk.navigation().snacks.find((food) => food.label === "CREAM BITES"))).cooldown, 0);
     console.log("Smooth eating, interruption, partial nutrition, optional points and objective separation passed");
 
     await place([-11, 0, 10.4], 58, 80);
@@ -110,17 +120,19 @@ const root = path.resolve(__dirname, "..");
       await place([-4, 0, 16.8], 58, chonk);
       await page.evaluate(() => window.__megaChonk.aimAt(8, 16.8));
       await page.keyboard.down("Shift"); await page.keyboard.down("w"); await page.waitForTimeout(450);
+      const beforeJump = await snap();
       await page.keyboard.press("Space");
       await page.waitForFunction(() => !window.__megaChonk.state.grounded);
       const start = await snap();
       await page.waitForFunction(() => window.__megaChonk.state.grounded);
       const end = await snap();
       await page.keyboard.up("w"); await page.keyboard.up("Shift");
-      return { distance: end.position[0] - start.position[0], impulse: start.jumpImpulse };
+      return { distance: end.position[0] - start.position[0], impulse: start.jumpImpulse, launchBurn: beforeJump.chonk - start.chonk };
     }
     const normalJump = await jump(48), heavyJump = await jump(84);
     assert.ok(normalJump.distance > 4.5, `Healthy sprint jump should be longer: ${JSON.stringify(normalJump)}`);
     assert.ok(normalJump.distance > heavyJump.distance * 1.6, "Weight must measurably reduce actual jump range");
+    assert.ok(normalJump.launchBurn >= 0.44, "A successful jump must immediately trim weight");
     for (const [weight, name] of [[35, "lean"], [95, "heavy"]]) {
       await place([0, 0, 15.2], 58, weight);
       await page.evaluate(() => { window.__megaChonk.character.heading = 2.35; window.__megaChonk.character.root.rotation.y = 2.35; });

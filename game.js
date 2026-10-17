@@ -11,7 +11,7 @@ import { TouchControls } from "./touch-controls.js";
 import { JUMP_PHYSICS, getJumpProfile, speedMultiplier, assessJump } from "./jump-rules.js";
 import { RunProgress } from "./adventure-rules.js";
 import { AdventureWorld } from "./adventure-world.js";
-import { CONDITION, NUTRITION, nourish, metabolize, bodyRadius, SnackWallet } from "./condition-rules.js";
+import { CONDITION, NUTRITION, nourish, metabolize, burnJump, bodyRadius, SnackWallet } from "./condition-rules.js";
 import { installChonkMorph } from "./cat-condition-visual.js";
 import { BodyTrials } from "./body-trials.js";
 
@@ -1274,6 +1274,7 @@ function updateVertical(delta) {
     const profile = jumpProfile();
     state.jumpBuffer = 0;
     if (profile.allowed) {
+      Object.assign(state, burnJump(state));
       character.verticalVelocity = profile.impulse;
       state.grounded = false;
       state.coyoteTime = 0;
@@ -1469,7 +1470,8 @@ function updateFood(delta, speed) {
       const leapControls = touchControls?.enabled ? "Trot + Jump" : "Shift + Space";
       showToast(`Catnip zoomies! +32% speed / +18% leap. ${leapControls} for the long jump.`, 5);
     } else if (points) {
-      showToast(`${nearest.label.toLowerCase()} / +${points} snack points, +${NUTRITION[nearest.nutrition].weight} chonk. Not a supper objective.`, 3.5);
+      const refill = nearest.regrow ? ` Refills in ${nearest.regrow} seconds.` : "";
+      showToast(`${nearest.label.toLowerCase()} / +${points} snack points, +${NUTRITION[nearest.nutrition].weight} chonk. Not a supper objective.${refill}`, 3.5);
     } else if (nearest.nutrition === "lean") {
       showToast("Lean supper / energy restored, no extra fat. Refills in 32 seconds.", 3.5);
     } else {
@@ -2220,7 +2222,7 @@ window.__megaChonk = {
         position: [food.group.position.x, food.baseY, food.group.position.z],
       }))
       .filter((food) => food.active && foods[food.index].required),
-    snacks: foods.filter((food) => !food.required).map((food) => ({ label: food.label, active: food.active, boost: food.boost, nutrition: food.nutrition, consumed: food.consumed, cooldown: food.cooldown, position: [food.group.position.x, food.baseY, food.group.position.z] })),
+    snacks: foods.filter((food) => !food.required).map((food) => ({ label: food.label, active: food.active, boost: food.boost, nutrition: food.nutrition, consumed: food.consumed, cooldown: food.cooldown, regrow: food.regrow, position: [food.group.position.x, food.baseY, food.group.position.z] })),
     verticalRoutes,
     surfaces: surfaces.map(({ minX, maxX, minZ, maxZ, topY }) => ({ minX, maxX, minZ, maxZ, topY })),
     goal: activeGoal

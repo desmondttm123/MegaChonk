@@ -1,6 +1,13 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-export const CONDITION = Object.freeze({ slimLimit: 60, plateWeight: 64, lives: 9, starvationGrace: 6 });
+export const CONDITION = Object.freeze({
+  slimLimit: 60,
+  plateWeight: 64,
+  lives: 9,
+  starvationGrace: 6,
+  richFoodRegrow: 20,
+  jumpChonkBurn: 0.45,
+});
 export const NUTRITION = Object.freeze({
   meal: Object.freeze({ energy: 8, weight: 0.8, points: 0, ceiling: 80 }),
   snack: Object.freeze({ energy: 10, weight: 9, points: 25, ceiling: 100 }),
@@ -23,9 +30,18 @@ export function nourish(condition, kind, fraction = 1) {
 
 export function metabolize(condition, delta, speed = 0, trotting = false, efficiency = 1) {
   const moving = speed > 0.06;
+  const chonkBurn = !moving ? 0 : trotting
+    ? 0.055 + speed * 0.018
+    : 0.022 + speed * 0.008;
   return {
     satiety: clamp(condition.satiety - delta * (0.025 + (moving ? trotting ? 0.42 : 0.30 : 0)) * efficiency, 0, 100),
-    chonk: clamp(condition.chonk - (moving ? delta * (0.035 + speed * 0.012) : 0), 26, 100),
+    chonk: clamp(condition.chonk - delta * chonkBurn, 26, 100),
+  };
+}
+
+export function burnJump(condition) {
+  return {
+    chonk: clamp(condition.chonk - CONDITION.jumpChonkBurn, 26, 100),
   };
 }
 

@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const load = (name) => import(`data:text/javascript;base64,${fs.readFileSync(path.join(__dirname, "..", name)).toString("base64")}`);
 (async () => {
-  const { nourish, metabolize, workOut, SnackWallet, bodyRadius } = await load("condition-rules.js");
+  const { CONDITION, nourish, metabolize, burnJump, workOut, SnackWallet, bodyRadius } = await load("condition-rules.js");
   const { speedMultiplier, getJumpProfile, assessJump } = await load("jump-rules.js");
   const optimal = { satiety: 58, chonk: 48 };
   assert.ok(speedMultiplier(58, 48) > speedMultiplier(5, 48) * 2);
@@ -23,7 +23,11 @@ const load = (name) => import(`data:text/javascript;base64,${fs.readFileSync(pat
   assert.equal(nourish(optimal, "lean").chonk, 48);
   const minute = metabolize(optimal, 60, 5.5, true);
   assert.ok(minute.satiety > 30 && minute.satiety < 35, "A full minute of sprinting must leave a playable energy reserve");
-  assert.ok(minute.chonk > 40 && minute.chonk < 44);
+  assert.ok(minute.chonk > 38 && minute.chonk < 40, "A full minute of running must noticeably trim weight");
+  const walkingMinute = metabolize(optimal, 60, 3.15, false);
+  assert.ok(optimal.chonk - minute.chonk > (optimal.chonk - walkingMinute.chonk) * 2.5, "Running must trim weight much faster than walking");
+  assert.equal(burnJump(optimal).chonk, optimal.chonk - CONDITION.jumpChonkBurn);
+  assert.equal(burnJump({ satiety: 58, chonk: 26 }).chonk, 26, "Jump exercise must respect the natural weight floor");
   assert.equal(workOut({ satiety: 10, chonk: 80 }), null);
   assert.deepEqual(workOut(rich), { satiety: 66.5, chonk: 53 });
   assert.ok(bodyRadius(95) > bodyRadius(45) * 1.3);
@@ -34,5 +38,5 @@ const load = (name) => import(`data:text/javascript;base64,${fs.readFileSync(pat
   assert.equal(new SnackWallet(storage).points, 25);
   const denied = new SnackWallet({ getItem() { throw Error(); }, setItem() { throw Error(); } });
   denied.award(60); assert.equal(denied.points, 60);
-  console.log("Condition rules passed: energy bell curve, fat/jump limits, nutrition, partial bites, gradual drain, workouts, persistent/fallback points");
+  console.log("Condition rules passed: energy bell curve, fat/jump limits, nutrition, partial bites, running/jump exercise, workouts, persistent/fallback points");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

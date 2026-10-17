@@ -23,8 +23,9 @@ interrupt eating. A separate repeating `EatLoop` derived from the bite clip
 keeps head/jaw motion alive without clamping or locking movement. The source
 GLB still contains its original seven animation clips.
 
-Rich bowl snacks refill after 30 seconds, lean supper after 32, and catnip after
-22. Refills ensure that even a very lean cat can regain enough mass for a plate.
+Every room has two rich bowl snacks beside the weight plate. They refill after
+20 seconds; lean supper refills after 32, and catnip after 22. Refills ensure
+that even a very lean cat can repeatedly eat its way to the maximum body size.
 Stashes and enemy drops are one-shot rewards. Snack points persist through
 restarts/reloads in this browser's `localStorage`, not in an account or cloud.
 Storage denial falls back to a session wallet. There is no spending/shop UI yet;
@@ -35,7 +36,7 @@ the future economy will need its own balancing and save-migration decisions.
 - Base leap impulse rose from 6.3 to 7.1 with 1.12x airborne pace. Grounded walk/trot bases remain 3.15/4.95 before condition, equipment and catnip. Healthy condition now gives a stronger 1.12x peak pace.
 - The speed bell curve centers on 58 satiety. Heavy mass progressively lowers pace from 55 chonk, reaching a 52% penalty at 100. Jump power declines from 55 to 90 chonk; satiety at or below 8 or chonk at or above 90 blocks leaps, including catnip leaps.
 - Passive energy drain is 0.025/second; walking adds 0.30 and trotting adds 0.42, scaled by pendant efficiency. A minute of continuous unequipped trotting costs about 27 satiety; a meal restores 8 in 1.25 seconds. Condition pauses offscreen, without focus, during transitions and after completion.
-- Movement burns `0.035 + speed * 0.012` chonk/second, with a natural floor of 26. An aimed claw on the scratch post removes 4 chonk and costs 1.5 satiety; it requires more than 16 satiety and 28 chonk. Lean supper prevents forced fat gain when recovering energy.
+- Walking burns `0.022 + speed * 0.008` chonk/second; trotting/running burns `0.055 + speed * 0.018`, and every successful jump burns another 0.45 chonk. All exercise respects a natural floor of 26. An aimed claw on the scratch post removes 4 chonk and costs 1.5 satiety; it requires more than 16 satiety and 28 chonk. Lean supper prevents forced fat gain when recovering energy.
 - Warnings appear at 20 and 8 energy. Six active seconds at zero costs one room life and any pendant, retains collar/meal progress/points/weight, and restores at least 55 energy at the checkpoint with a recovery grace period. Nine losses open a checkpoint-continue screen, not a forced replay of completed meals. Boss deaths use the existing independent fight lives.
 - Slim filters admit cats at 60 chonk or below. Occupants can always leave, even after the stash pushes their chonk over 60. Heavy plates require 64 chonk and 0.6 seconds grounded; their gate stays latched until the room is regenerated. Neither trial is on a mandatory route.
 - Two rich snacks are enough to press the plate from normal starting weight. Trim with the nearby scratch post afterward. Signs and proximity prompts state the thresholds and distinguish supper objectives from optional food.
@@ -48,11 +49,11 @@ Tested locally on 2026-10-17 using headless Microsoft Edge/Playwright:
 
 | Check | Result |
 | --- | --- |
-| Pure condition rules | Passed bell curve, weight/jump limits, food caps, partial nutrition, gradual drain, workout and storage denial/save cases |
-| Condition browser integration | Passed interpolated eating head motion, immediate movement interruption, proportional partial bites, no duplicate awards, two-snack plate activation, objective separation, fat-blocked slim entry, lean entry, safe post-reward exit, latched plate, scratch workout, lean feeding/refill, starvation/charm loss/recovery, nine-life continue and reload persistence |
-| Actual flat-ground sprint jumps | Approximately 5.28 units at 58 satiety/48 chonk versus 2.41 at 58/84; isolated clear-lane scenario starts, normal keyboard movement/physics |
-| Campaign seed 424242 | All 12 meals and boss, 850 XP, 6 jumps, no deaths/bonks; keyboard autoplay from spawn, no objective teleports/condition injection |
-| Campaign seed 765432 | All 12 meals and boss, 850 XP, 4 jumps on final rerun (5 earlier), no deaths/bonks; same full-run boundaries |
+| Pure condition rules | Passed bell curve, weight/jump limits, food caps, partial nutrition, faster running burn, fixed jump burn/floor, workout and storage denial/save cases |
+| Condition browser integration | Passed two regenerating rich bowls in all three rooms, an actual 20-second rich-bowl refill, interpolated/interruptible eating, partial nutrition, no duplicate awards, plate activation, objective separation, body trials, workouts, lean feeding/refill, starvation/recovery and reload persistence |
+| Actual flat-ground sprint jumps | Approximately 5.22 units at 58 satiety/48 chonk versus 2.41 at 58/84; each launch burned about 0.45 chonk in isolated clear-lane scenarios using normal keyboard movement/physics |
+| Campaign seed 424242 | All 12 meals and boss, 850 XP, 4 jumps, no deaths/bonks, final chonk 38.92; keyboard autoplay from spawn, no objective teleports/condition injection |
+| Campaign seed 765432 | All 12 meals and boss, 850 XP, 5 jumps, no deaths/bonks, final chonk 38.62; same full-run boundaries |
 | Generated layouts | 90 passed, all three rooms, counts 25/30/37, protected routes/hazards/enemies and moving-platform carry |
 | Adventure | Equipment, rich enemy loot, deaths, conservative hurdle clearance, nine boss losses/retry and no-equipment keyboard victory passed |
 | Vertical routes | All stairs, hungry/heavy stairs, failed unboosted shortcut, successful boosted perch/descending shelves, expiry and gallery underside passed |

@@ -24,8 +24,9 @@ export class BodyTrials {
       this.sign(kind === "slim" ? "SLIM STASH / CHONK 60 OR LESS" : "HEAVY STASH / PLATE NEEDS 64", x, 2.9, 8.4);
       if (kind === "heavy") {
         this.plate = box("HeavyPressurePlate", x, 0.045, 10.3, 1.8, 0.09, 1.4, checkpoint, false);
-        this.food(8.8, 11.8, "CREAM BITES", 0, { required: false, xp: 0, regrow: 30 });
-        this.food(12.6, 11.8, "SALMON PUFFS", 0, { required: false, xp: 0, regrow: 30 });
+        this.food(8.8, 11.8, "CREAM BITES", 0, { required: false, xp: 0, regrow: CONDITION.richFoodRegrow });
+        this.food(12.6, 11.8, "SALMON PUFFS", 0, { required: false, xp: 0, regrow: CONDITION.richFoodRegrow });
+        this.sign(`RICH FOOD / +9 CHONK / REFILLS ${CONDITION.richFoodRegrow}S`, 10.7, 1.25, 12.7);
       }
     }
     this.post = box("WorkoutScratchPost", 4.3, 0.65, 14.3, 0.45, 1.3, 0.45, woodLight);
